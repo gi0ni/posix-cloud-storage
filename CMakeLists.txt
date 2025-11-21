@@ -5,12 +5,16 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "../bin")
 
 set(SRCS 
 	"src/server.cpp"
+	"src/utils.cpp"
+	"src/packet.cpp"
 )
 
 add_executable("server" ${SRCS})
 
 set(SRCS
 	"src/client.cpp"
+	"src/utils.cpp"
+	"src/packet.cpp"
 )
 
 add_executable("client" ${SRCS})

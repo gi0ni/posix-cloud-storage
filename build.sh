@@ -44,10 +44,11 @@ launch() {
 launch "ninja -C build" "1"
 ret=$?
 
-serverArgs="a "
-clientArgs="b "
+serverArgs="0.0.0.0 4023"
+clientArgs="0.0.0.0 4023"
 
 if [ $ret -eq 0 ]; then
 	launch "./bin/server $serverArgs" "0"
+	sleep 0.100
 	launch "./bin/client $clientArgs" "0"
 fi
