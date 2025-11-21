@@ -44,8 +44,8 @@ launch() {
 launch "ninja -C build" "1"
 ret=$?
 
-serverArgs="0.0.0.0 4023"
-clientArgs="0.0.0.0 4023"
+serverArgs="0.0.0.0   4023"
+clientArgs="127.0.0.1 4023"
 
 if [ $ret -eq 0 ]; then
 	launch "./bin/server $serverArgs" "0"
