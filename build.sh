@@ -44,7 +44,10 @@ launch() {
 launch "ninja -C build" "1"
 ret=$?
 
+serverArgs="a "
+clientArgs="b "
+
 if [ $ret -eq 0 ]; then
-	launch "./bin/server a" "0"
-	launch "./bin/client b" "0"
+	launch "./bin/server $serverArgs" "0"
+	launch "./bin/client $clientArgs" "0"
 fi
