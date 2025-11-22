@@ -48,7 +48,12 @@ serverArgs="0.0.0.0   4023"
 clientArgs="127.0.0.1 4023"
 
 if [ $ret -eq 0 ]; then
-	launch "./bin/server $serverArgs" "0"
+
+	ps aux | grep -P " ./bin/server " | grep -v "grep"
+	if [ $? -ne 0 ]; then
+		launch "./bin/server $serverArgs" "0"
+	fi
+
 	sleep 0.100
 	launch "./bin/client $clientArgs" "0"
 fi

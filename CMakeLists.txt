@@ -17,4 +17,9 @@ set(SRCS
 	"src/packet.cpp"
 )
 
-add_executable("client" ${SRCS})
+file(GLOB_RECURSE IMGUI "lib/imgui/*.cpp")
+include_directories("inc")
+link_directories("lib/SDL3")
+
+add_executable("client" ${SRCS} ${IMGUI})
+target_link_libraries("client" -lSDL3)
