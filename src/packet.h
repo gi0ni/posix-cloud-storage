@@ -1,22 +1,25 @@
 #ifndef PACKET_H
 #define PACKET_H
 
-#include <unistd.h>
-#include <stdexcept>
-
 enum Flags
 {
-	QUIT
+	QUIT,
+	TEST = 127
 };
 
-struct Packet
+class Packet
 {
+	public:
 	int size;
 	int flag;
 	char* data;
+
+	Packet();
+	Packet(Flags flag, const char* data, int sz);
+	~Packet();
+	void Recv(int fd);
+	void Send(int fd);
 };
 
-Packet RecvPacket(int fd);
-void SendPacket(const Packet& packet, int fd);
 
 #endif

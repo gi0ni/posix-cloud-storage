@@ -1,19 +1,45 @@
 #include "packet.h"
 
-Packet RecvPacket(int fd)
+#include <unistd.h>
+
+#include <cstdlib>
+#include <cstring>
+#include <stdexcept>
+#include <iostream>
+
+Packet::Packet()
 {
-	Packet temp;
-	if(read(fd, &temp.size, sizeof(temp.size)) < 0)
-		throw std::runtime_error("Read failure");
-
-	if(read(fd, (char*)(&temp) + sizeof(temp.size), temp.size - sizeof(temp.size)) < 0)
-		throw std::runtime_error("Read failure");
-
-	return temp;
+	data = nullptr;
 }
 
-void SendPacket(const Packet& packet, int fd)
+Packet::Packet(Flags flag, const char* data, int sz)
 {
-	if(write(fd, &packet, packet.size) < 0)
+	this->flag = flag;
+	this->data = (char*)realloc(this->data, sz);
+	strncpy(this->data, data, sz);
+	this->size = 8 + sz;
+}
+
+Packet::~Packet()
+{
+	if(data != nullptr)
+		delete[] data;
+	std::cout << "dtor called!\n";
+}
+
+void Packet::Recv(int fd)
+{
+	if(read(fd, &size, sizeof(size)) < 0)
+		throw std::runtime_error("Read failure");
+
+	if(size > 8) data = (char*)realloc(data, size);
+
+	if(read(fd, (char*)(this) + sizeof(size), size - sizeof(size)) < 0)
+		throw std::runtime_error("Read failure");
+}
+
+void Packet::Send(int fd)
+{
+	if(write(fd, this, size) < 0)
 		throw std::runtime_error("Write failure");
 }
