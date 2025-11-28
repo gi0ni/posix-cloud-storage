@@ -16,7 +16,7 @@
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
 #include <imgui_impl_sdlrenderer2.h>
-#include <SDL3/SDL.h>
+#include <SDL2/SDL.h>
 
 // TODO: console window with imgui. would be a pain tho
 // listbox with textinput and its totally doable
@@ -32,9 +32,8 @@ int main(int argc, char** argv)
 	///////////////////////////////////////////
 
 	SDL_Init(SDL_INIT_VIDEO);
-	SDL_Window* window = SDL_CreateWindow("Client", 1152, 648, SDL_WINDOW_RESIZABLE);
-	SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
-	SDL_SetRenderVSync(renderer, 1);
+	SDL_Window* window = SDL_CreateWindow("Client", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1152, 648, SDL_WINDOW_RESIZABLE);
+	SDL_Renderer* renderer = SDL_CreateRenderer(window, 0, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 	SDL_ShowWindow(window);
 
 	IMGUI_CHECKVERSION();
@@ -60,17 +59,17 @@ int main(int argc, char** argv)
 		{
 			switch(event.type)
 			{
-				case SDL_EVENT_QUIT:
+				case SDL_QUIT:
 					glb.windowShouldClose = true;
 				break;
 
-				case SDL_EVENT_KEY_DOWN:
-					if(!io.WantTextInput && event.key.key == SDLK_ESCAPE)
+				case SDL_KEYDOWN:
+					if(!io.WantTextInput && event.key.keysym.sym == SDLK_ESCAPE)
 						glb.windowShouldClose = true;
 				break;
 
-				case SDL_EVENT_DROP_FILE:
-					std::cout << event.drop.data << '\n';
+				case SDL_DROPFILE:
+					std::cout << event.drop.file << '\n';
 				break;
 			}
 
@@ -98,7 +97,6 @@ int main(int argc, char** argv)
 	{
 		Packet packet(Flags::QUIT, NULL, 0);
 		packet.Send(glb.serverSocket);
-		packet.Send(glb.serverSocket);
 
 		printf(WARN "Disconnected from server.\n" CLEAR);
 		close(glb.serverSocket);
@@ -106,6 +104,7 @@ int main(int argc, char** argv)
 
 	// FIX: CLEAR IMGUI 
 
+	SDL_DestroyWindow(window);
 	SDL_Quit();
 	return 0;
 }

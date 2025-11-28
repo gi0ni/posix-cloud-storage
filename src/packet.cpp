@@ -15,16 +15,24 @@ Packet::Packet()
 Packet::Packet(Flags flag, const char* data, int sz)
 {
 	this->flag = flag;
-	this->data = (char*)realloc(this->data, sz);
-	strncpy(this->data, data, sz);
+
+	if(sz != 0)
+	{
+		this->data = (char*)realloc(this->data, sz);
+		strncpy(this->data, data, sz);
+	}
+	else
+	{
+		this->data = nullptr;
+	}
+
 	this->size = 8 + sz;
 }
 
 Packet::~Packet()
 {
 	if(data != nullptr)
-		delete[] data;
-	std::cout << "dtor called!\n";
+		free(data);
 }
 
 void Packet::Recv(int fd)
