@@ -3,5 +3,6 @@
 
 void ConnectMenu();
 void FileViewMenu();
+void AuthMenu();
 
 #endif

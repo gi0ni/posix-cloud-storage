@@ -15,12 +15,12 @@ namespace fs = std::filesystem;
 
 void ConnectMenu()
 {
-	if(glb.connected)
+	if(glb.connected == true)
 		return;
 
 	ImGuiIO& io = ImGui::GetIO();
 
-	ImGui::Begin("Menu");
+	ImGui::Begin("Connect");
 	ImGui::Text("%.1f", io.Framerate);
 	ImGui::Text("%d", glb.value);
 
@@ -52,12 +52,32 @@ void ConnectMenu()
 	ImGui::End();
 }
 
+void AuthMenu()
+{
+	if(glb.connected == false || glb.auth)
+		return;
+
+	ImGui::Begin("Login");
+	ImGui::Text("Hello");
+	ImGui::InputText("Username", glb.username, 64);
+	ImGui::InputText("Password", glb.password, 64);
+	if(ImGui::Button("Login"))
+	{
+		glb.auth = true;
+	}
+	ImGui::End();
+}
+
 void FileViewMenu()
 {
+	if(glb.auth == false)
+		return;
+
 	ImGui::Begin("Files");
 
 	ImGui::Text("%s", (fs::canonical(glb.cwd)).c_str());
-	ImGui::BeginListBox("##filelist", ImGui::GetContentRegionAvail()); // FIX: will return error if too small or hidden. need to handle that
+	if(!ImGui::BeginListBox("##filelist", ImGui::GetContentRegionAvail())) // FIX: will return error if too small or hidden. need to handle that
+		return;
 
 	ImDrawList& render = *ImGui::GetWindowDrawList();
 
@@ -67,7 +87,7 @@ void FileViewMenu()
 		bool isDir = fs::is_directory(glb.cwd + "/" + file);
 
 		if(isDir)
-		ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 152, 65, 255));
+			ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 152, 65, 255));
 		// ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(0, 0, 0, 255));
 
 		render.ChannelsSplit(2);
@@ -88,7 +108,7 @@ void FileViewMenu()
 			}
 		}
 		if(isDir)
-		ImGui::PopStyleColor();
+			ImGui::PopStyleColor();
 
 		render.ChannelsSetCurrent(0);
 		if(index % 2 == 1)

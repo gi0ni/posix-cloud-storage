@@ -14,8 +14,8 @@
 #include "widgets.h"
 
 #include <imgui.h>
-#include <imgui_impl_sdl3.h>
-#include <imgui_impl_sdlrenderer3.h>
+#include <imgui_impl_sdl2.h>
+#include <imgui_impl_sdlrenderer2.h>
 #include <SDL3/SDL.h>
 
 // TODO: console window with imgui. would be a pain tho
@@ -44,14 +44,14 @@ int main(int argc, char** argv)
 	// glb.mainFont = io.Fonts->AddFontFromFileTTF("./res/fonts/JetBrainsMonoNerdFontMono-Regular.ttf", 20);
 	IM_ASSERT(glb.mainFont != NULL);
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-	ImGui_ImplSDL3_InitForSDLRenderer(window, renderer);
-	ImGui_ImplSDLRenderer3_Init(renderer);
+	ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
+	ImGui_ImplSDLRenderer2_Init(renderer);
 
 	int frame = 0;
 	// std::cout << "" << '\n';
 
 	glb.cwd = ".";
-	glb.dirContents = Crawl(glb.cwd);
+	// glb.dirContents = Crawl(glb.cwd);
 
 	while(glb.windowShouldClose == false)
 	{
@@ -74,31 +74,23 @@ int main(int argc, char** argv)
 				break;
 			}
 
-			ImGui_ImplSDL3_ProcessEvent(&event);
+			ImGui_ImplSDL2_ProcessEvent(&event);
 		}
 
-		ImGui_ImplSDLRenderer3_NewFrame();
-		ImGui_ImplSDL3_NewFrame();
+		ImGui_ImplSDLRenderer2_NewFrame();
+		ImGui_ImplSDL2_NewFrame();
 		ImGui::NewFrame();
 
 		ImGui::PushFont(glb.mainFont);
-		// ConnectMenu();
+		ConnectMenu(); // FIX: needs to let you try again. not just crash the entire app
+		AuthMenu();
 		FileViewMenu();
 
-		ImGui::Begin("asdf");
-		ImGui::Text("%d", glb.value);
-
-		if(ImGui::Button("mod"))
-		{
-			glb.value = -33;
-		}
-
-		ImGui::End();
 		ImGui::PopFont();
 
 		ImGui::Render();
 		SDL_RenderClear(renderer);
-		ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
+		ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
 		SDL_RenderPresent(renderer);
 	}
 
@@ -111,6 +103,8 @@ int main(int argc, char** argv)
 		printf(WARN "Disconnected from server.\n" CLEAR);
 		close(glb.serverSocket);
 	}
+
+	// FIX: CLEAR IMGUI 
 
 	SDL_Quit();
 	return 0;

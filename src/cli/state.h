@@ -23,9 +23,13 @@ class State
 
 	ImFont* mainFont;
 
+	bool connected = false;
 	char ip[64];
 	char port[64];
-	bool connected = false;
+	
+	bool auth = false;
+	char username[64];
+	char password[64];
 
 	std::string cwd;
 	std::vector<std::string> dirContents;
