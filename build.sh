@@ -45,7 +45,7 @@ launch "ninja -C build" "1"
 ret=$?
 
 serverArgs="0.0.0.0   4023"
-clientArgs="127.0.0.1 4023"
+clientArgs="127.0.0.1 4023 johnsmith 1234"
 
 if [ $ret -eq 0 ]; then
 
