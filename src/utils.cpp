@@ -11,6 +11,9 @@ void PrintErr(const char* msg)
 #include <dirent.h>
 #include <filesystem>
 
+#include <iostream>
+#include <iomanip>
+
 namespace fs = std::filesystem;
 
 std::vector<std::string> Crawl(std::string dirname)
@@ -40,4 +43,28 @@ std::vector<std::string> Crawl(std::string dirname)
 		return left < right;
 	});
 	return dirContents;
+}
+
+void HexDump(const char* data, int sz)
+{
+	std::ios init(NULL);
+	init.copyfmt(std::cout);
+
+	for(int i = 0; i < sz; i++)
+		std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)(unsigned char)data[i];
+	std::cout << '\n';
+
+	std::cout.copyfmt(init);
+}
+
+void HexDump(const std::string& data)
+{
+	std::ios init(NULL);
+	init.copyfmt(std::cout);
+
+	for(int i = 0; i < data.size(); i++)
+		std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)(unsigned char)data[i];
+	std::cout << '\n';
+
+	std::cout.copyfmt(init);
 }

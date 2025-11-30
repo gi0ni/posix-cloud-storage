@@ -26,10 +26,15 @@ class State
 	bool connected = false;
 	char ip[64];
 	char port[64];
-	
+
+	unsigned char secret_key[32];
+
 	bool auth = false;
 	char username[64];
 	char password[64];
+
+	bool error = true;
+	std::string errormsg;
 
 	std::string cwd;
 	std::vector<std::string> dirContents;

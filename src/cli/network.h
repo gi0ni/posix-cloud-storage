@@ -2,5 +2,6 @@
 #define CLIENT_NETWORK_H
 
 void Connect();
+int SendAuthReq();
 
 #endif

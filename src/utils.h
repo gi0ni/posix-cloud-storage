@@ -13,5 +13,7 @@
 
 void PrintErr(const char* msg);
 std::vector<std::string> Crawl(std::string dirname);
+void HexDump(const char* data, int sz);
+void HexDump(const std::string& data);
 
 #endif

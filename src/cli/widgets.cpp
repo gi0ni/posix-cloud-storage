@@ -41,8 +41,10 @@ void ConnectMenu()
 	if(!glb.connected && ImGui::Button("Connect"))
 	{
 		Connect();
-		glb.connected = true;
 	}
+
+	if(glb.error)
+		ImGui::Text("%s", glb.errormsg.c_str());
 
 	if(glb.connected && ImGui::Button("Disconnect"))
 	{
@@ -54,7 +56,7 @@ void ConnectMenu()
 
 void AuthMenu()
 {
-	if(glb.connected == false || glb.auth)
+	if(!glb.connected || glb.auth)
 		return;
 
 	ImGui::Begin("Login");
@@ -63,8 +65,22 @@ void AuthMenu()
 	ImGui::InputText("Password", glb.password, 64);
 	if(ImGui::Button("Login"))
 	{
-		glb.auth = true;
+		if(SendAuthReq())
+		{
+			glb.error = true;
+		}
+		else
+		{
+			glb.error = false;
+			glb.auth = true;
+		}
 	}
+
+	if(glb.error)
+		ImGui::Text("wrong password");
+
+	// TODO: register button
+
 	ImGui::End();
 }
 
@@ -76,8 +92,12 @@ void FileViewMenu()
 	ImGui::Begin("Files");
 
 	ImGui::Text("%s", (fs::canonical(glb.cwd)).c_str());
+	// FIX: crashes when minimizing window
 	if(!ImGui::BeginListBox("##filelist", ImGui::GetContentRegionAvail())) // FIX: will return error if too small or hidden. need to handle that
+	{
+		ImGui::End();
 		return;
+	}
 
 	ImDrawList& render = *ImGui::GetWindowDrawList();
 

@@ -13,6 +13,8 @@
 #include "state.h"
 #include "widgets.h"
 
+#include "sodium/core.h"
+
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
 #include <imgui_impl_sdlrenderer2.h>
@@ -29,6 +31,8 @@ int main(int argc, char** argv)
 	// FIX: parse args properly
 	strcpy(glb.ip, argv[1]);
 	strcpy(glb.port, argv[2]);
+	strcpy(glb.username, argv[3]);
+	strcpy(glb.password, argv[4]);
 	///////////////////////////////////////////
 
 	SDL_Init(SDL_INIT_VIDEO);

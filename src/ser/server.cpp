@@ -10,10 +10,20 @@
 #include <errno.h>
 #include <cstring>
 #include <pthread.h>
+
 #include <iostream>
+#include <string>
+#include <sstream>
+
+#include <tinyxml2.h>
+#include <sodium.h>
+#include <sodium/crypto_pwhash_scryptsalsa208sha256.h>
+#include <sodium/crypto_scalarmult_curve25519.h>
 
 #include "../utils.h"
 #include "../packet.h"
+
+using namespace tinyxml2;
 
 namespace glb
 {
@@ -21,6 +31,9 @@ namespace glb
 	int clientCount;
 
 	pthread_mutex_t mut;
+
+	XMLDocument doc;
+	pthread_mutex_t xmldocwriteMut;
 };
 
 void SigInt_Handler(int sig)
@@ -28,6 +41,12 @@ void SigInt_Handler(int sig)
 	printf(WARN "\nServer closed forcefully.\n" CLEAR);
 	close(glb::listenSocket);
 	// shutdow 
+	exit(1);
+}
+
+void SigPipe_Handler(int sig)
+{
+	printf(ERR "SIGPIPE WHY\n" CLEAR);
 	exit(1);
 }
 
@@ -44,6 +63,7 @@ struct ThreadInfo
 
 ThreadInfo threadPool[MAXTHREADS];
 
+// TODO: put this in its own file bruh
 void* ServerWorker(void* arg)
 {
 	pthread_detach(pthread_self());
@@ -51,20 +71,94 @@ void* ServerWorker(void* arg)
 	info.alive = true;
 
 	Packet packet;
+	// std::cout << (packet.data == nullptr) << '\n';
 
-	try
+	// FIX: what if the xml doc gets destroyed midway through
+
+	unsigned char public_key[32];
+	unsigned char private_key[32];
+	unsigned char secret_key[32];
+
+	int fd = open("/dev/random", O_RDONLY);
+	read(fd, &private_key[0], 32);
+	close(fd);
+	
+	crypto_scalarmult_curve25519_base(public_key, private_key);
+	std::cout << "private key: "; HexDump((char*)private_key, 32);
+	std::cout << "public  key: "; HexDump((char*)public_key,  32);
+	bool auth = false;
+
+	while(true)
 	{
-		packet.Recv(info.clientSocket);
+		try
+		{
+			packet.Recv(info.clientSocket);
+		}
+		catch(std::exception& e)
+		{
+			printf(ERR "Failed to recv from client %d.\n" CLEAR, info.id);
+			goto cleanup;
+		}
+
+		printf(OK "Received flag %d from client.\n" CLEAR, packet.flag);
+
+		switch(packet.flag)
+		{
+			case Flags::KEY_EXCHANGE:
+			{
+				unsigned char peer_public_key[32];
+				strncpy((char*)peer_public_key, packet.data, 32);
+				std::cout << "peer key: "; HexDump((char*)peer_public_key, 32);
+
+				int err = crypto_scalarmult_curve25519(secret_key, private_key, peer_public_key);
+				std::cout << "secret key: "; HexDump((char*)secret_key, 32);
+
+				printf("SEND BACK KEY\n");
+				std::cout << "packing: "; HexDump((char*)public_key, 32);
+				Packet response(Flags::KEY_EXCHANGE, (char*)public_key, 32); // FIX: RANDOMLY CUTS OFF TO ZEROS WHYYYYYYYYYYY
+				std::cout << "sending: "; HexDump((char*)response.data, 32);
+				response.Send(info.clientSocket);
+			}
+			break;
+
+			case Flags::AUTH_REQUEST:
+			{
+				std::cout << "received: " << packet.size - 8 << '\n';
+				std::cout << packet.data << '\n';
+
+				std::string data = Decrypt(packet.data, packet.size - 8, secret_key);
+
+				std::stringstream stream;
+				stream << data;
+
+				std::string username; 
+				std::getline(stream, username, '\n');
+				std::string password;
+				std::getline(stream, password, '\n');
+
+				std::cout << username << '\n';
+				std::cout << password << '\n';
+
+				// XMLElement* user = glb::doc.FirstChildElement("users")->FirstChildElement("user");
+				//
+				// while(user)
+				// {
+				// 	user = user->NextSiblingElement("user");
+				// }
+
+				Packet response(Flags::ACCEPT, NULL, 0);
+				response.Send(info.clientSocket);
+				auth = true;
+			}
+			break;
+
+			case Flags::QUIT:
+			{
+				goto cleanup;
+			}
+			break;
+		}
 	}
-	catch(std::exception& e)
-	{
-		printf(ERR "Failed to recv from client %d.\n" CLEAR, info.id);
-		goto cleanup;
-	}
-
-
-	printf(OK "Received flag %d from client.\n" CLEAR, packet.flag);
-
 
 	cleanup:
 	info.alive = false;
@@ -79,6 +173,16 @@ void* ServerWorker(void* arg)
 
 int main(int argc, char** argv)
 {
+	if(sodium_init())
+	{
+		std::cout << "Failed to init sodium!!\n";
+		return 1;
+	}
+
+	if(glb::doc.LoadFile("users.xml"))
+		glb::doc.NewElement("users");
+	//////////////////////
+
 	glb::listenSocket = socket(AF_INET, SOCK_STREAM, 0);
 	if(glb::listenSocket < 0)
 	{
@@ -87,7 +191,10 @@ int main(int argc, char** argv)
 	}
 
 	signal(SIGINT, SigInt_Handler);
+	signal(SIGPIPE, SigPipe_Handler);
 
+	int flag = 1;
+	setsockopt(glb::listenSocket, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
 	fcntl(glb::listenSocket, F_SETFL, fcntl(glb::listenSocket, F_GETFL, 0) | O_NONBLOCK);
 
 	sockaddr_in serverAddr;
@@ -102,8 +209,8 @@ int main(int argc, char** argv)
 		if(errno == EADDRINUSE)
 		{
 			printf(WARN "Address is marked as used. Trying to reuse...\n" CLEAR);
-			int flag = 1;
-			setsockopt(glb::listenSocket, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
+			// int flag = 1;
+			// setsockopt(glb::listenSocket, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)); // FIX: well this doesnt seem to work
 
 			if(bind(glb::listenSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)))
 			{
@@ -113,6 +220,7 @@ int main(int argc, char** argv)
 			}
 		}
 
+		printf("I GAVE UP THE FIRST TIME\n");
 		PrintErr("bind");
 		close(glb::listenSocket);
 		return 1;
@@ -185,5 +293,8 @@ int main(int argc, char** argv)
 	printf(WARN "Server terminated.\n" CLEAR);
 	// shutdown
 	close(glb::listenSocket);
+
+	/////
+	glb::doc.SaveFile("users.xml");
 	return 0;
 }
