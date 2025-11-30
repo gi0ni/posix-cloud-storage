@@ -110,7 +110,7 @@ std::string Decrypt(const char* data, int sz, unsigned char key[32])
 {
 	std::string output(sz - 12 - 16, 0);
 	unsigned long long int mlen;
-	unsigned char nonce[12]; strncpy((char*)nonce, data, 12);
+	unsigned char nonce[12]; memcpy((char*)nonce, data, 12);
 
 	int err = crypto_aead_aes256gcm_decrypt(
 			(unsigned char*)&output[0],

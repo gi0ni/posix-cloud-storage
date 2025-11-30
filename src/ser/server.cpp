@@ -107,7 +107,7 @@ void* ServerWorker(void* arg)
 			case Flags::KEY_EXCHANGE:
 			{
 				unsigned char peer_public_key[32];
-				strncpy((char*)peer_public_key, packet.data, 32);
+				memcpy((char*)peer_public_key, packet.data, 32);
 				std::cout << "peer key: "; HexDump((char*)peer_public_key, 32);
 
 				int err = crypto_scalarmult_curve25519(secret_key, private_key, peer_public_key);
