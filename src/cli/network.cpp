@@ -11,8 +11,7 @@
 #include <signal.h>
 #include <arpa/inet.h>
 
-#include <sodium/crypto_scalarmult_curve25519.h>
-#include <sodium/crypto_aead_aes256gcm.h>
+#include <sodium.h>
 
 #include <stdlib.h>
 
@@ -93,7 +92,7 @@ void Connect()
 	printf(OK "KEY EXCHANGE SUCCESS\n" CLEAR);
 }
 
-int SendAuthReq()
+int SendAuthReq(Flags flag)
 {
 	std::string data = std::string(glb.username) + '\n' + glb.password + '\n';
 	std::cout << "expect enc msg len: " << data.size() + 12 + 16 << '\n';
@@ -105,7 +104,7 @@ int SendAuthReq()
 	std::cout << "cyphertext: "; HexDump(std::string(&encrypted_data[12], encrypted_data.size() - 12 - 16));
 	std::cout << "MAC       : "; HexDump(std::string(&encrypted_data[encrypted_data.size() - 16], 16));
 
-	Packet packet(Flags::AUTH_REQUEST, &encrypted_data[0], encrypted_data.size());
+	Packet packet(flag, &encrypted_data[0], encrypted_data.size());
 	packet.Send(glb.serverSocket);
 	packet.Recv(glb.serverSocket);
 
@@ -118,4 +117,3 @@ int SendAuthReq()
 	printf(OK "AUTH SUCCESS\n" CLEAR);
 	return 0;
 }
-

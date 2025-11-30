@@ -65,7 +65,20 @@ void AuthMenu()
 	ImGui::InputText("Password", glb.password, 64);
 	if(ImGui::Button("Login"))
 	{
-		if(SendAuthReq())
+		if(SendAuthReq(Flags::AUTH_REQUEST))
+		{
+			glb.error = true;
+		}
+		else
+		{
+			glb.error = false;
+			glb.auth = true;
+		}
+	}
+
+	if(ImGui::Button("Register"))
+	{
+		if(SendAuthReq(Flags::REGISTER_REQUEST))
 		{
 			glb.error = true;
 		}

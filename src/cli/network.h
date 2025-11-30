@@ -1,7 +1,9 @@
 #ifndef CLIENT_NETWORK_H
 #define CLIENT_NETWORK_H
 
+#include "../packet.h"
+
 void Connect();
-int SendAuthReq();
+int SendAuthReq(Flags flag);
 
 #endif
