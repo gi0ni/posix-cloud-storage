@@ -114,6 +114,9 @@ int SendAuthReq(Flags flag)
 		return -1;
 	}
 
+	memcpy(glb.salt_e, packet.data, 32);
+	HexDump((char*)glb.salt_e, 32);
+
 	printf(OK "AUTH SUCCESS\n" CLEAR);
 	return 0;
 }

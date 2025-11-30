@@ -19,10 +19,6 @@
 
 #include <tinyxml2.h>
 #include <sodium.h>
-#include <sodium/crypto_pwhash_scryptsalsa208sha256.h>
-#include <sodium/crypto_scalarmult_curve25519.h>
-
-#include <sodium/crypto_pwhash_scryptsalsa208sha256.h>
 
 #include "../utils.h"
 #include "../packet.h"
@@ -219,7 +215,7 @@ void* ServerWorker(void* arg)
 					user->InsertNewChildElement("salt-p")->SetText(ToHexString((char*)salt_p, 32).c_str());
 					user->InsertNewChildElement("salt-e")->SetText(ToHexString((char*)salt_e, 32).c_str());
 
-					Packet response(Flags::ACCEPT, (char*)salt_e, 16);
+					Packet response(Flags::ACCEPT, (char*)salt_e, 32);
 					response.Send(info.clientSocket);
 					auth = false;
 				}
@@ -285,7 +281,7 @@ void* ServerWorker(void* arg)
 						unsigned char salt_e[32];
 						memcpy((char*)salt_e, FromHexString(user->FirstChildElement("salt-e")->GetText(), 64).c_str(), 32);
 
-						Packet response(Flags::ACCEPT, (char*)salt_e, 16);
+						Packet response(Flags::ACCEPT, (char*)salt_e, 32);
 						response.Send(info.clientSocket);
 						auth = true;
 						break;

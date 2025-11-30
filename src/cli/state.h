@@ -32,6 +32,7 @@ class State
 	bool auth = false;
 	char username[64];
 	char password[64];
+	unsigned char salt_e[32];
 
 	bool error = true;
 	std::string errormsg;
