@@ -1,2 +1,14 @@
 <users>
+    <user id="0">
+        <username>johnsmith</username>
+        <hash>5e35e422c3ac42e38a5143477409d6ef3175879b0e0d1ae1b3f2e15c94f7db264c31fc0a02753fe8205616cf9c9dac6d39afab48ca060d1eb0d3972243d2b9ce</hash>
+        <salt-p>9c8b79bceea06d41cb26d9a98867db165ca82602ec0271bad82530c8528a07ba</salt-p>
+        <salt-e>1ca6f7182c283e8503f9ac8e744d513673d0587c4faeb06b255c94fb9e71575d</salt-e>
+    </user>
+    <user id="1">
+        <username>kate</username>
+        <hash>bf704b2f73fa0cc183666dac96998a6cc2419ca1b63a3a532db6b6c1779ea83ddacee6959c76e12c06b9305f87b11fd6ecbf4a023cde5eab038a37606d492705</hash>
+        <salt-p>a0b695aac41d7ccfdcbb14a264b000a46787b3fa1af11251835af1a8778f2a76</salt-p>
+        <salt-e>25fb661c71c16c92ad1afd81661b0b50f201ce7b29f575c6774a2de940893a7a</salt-e>
+    </user>
 </users>
