@@ -33,6 +33,7 @@ class State
 	char username[64];
 	char password[64];
 	unsigned char salt_e[32];
+	unsigned char fileKey[32];
 
 	bool error = true;
 	std::string errormsg;

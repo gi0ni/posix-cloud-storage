@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <sys/fcntl.h>
 #include <signal.h>
+#include <sys/stat.h>
 
 #include <stdlib.h>
 #include <errno.h>
@@ -12,6 +13,7 @@
 #include <pthread.h>
 
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 #include <string>
 #include <sstream>
@@ -39,9 +41,9 @@ namespace glb
 void SigInt_Handler(int sig)
 {
 	printf(WARN "\nServer closed forcefully.\n" CLEAR);
-	glb::doc.SaveFile("users.xml");
+	glb::doc.SaveFile("usr/users.xml");
 	close(glb::listenSocket);
-	// shutdow 
+	// shutdown
 	exit(1);
 }
 
@@ -50,33 +52,6 @@ void SigPipe_Handler(int sig)
 	printf(ERR "SIGPIPE WHY\n" CLEAR);
 	exit(1);
 }
-
-//////////////////// for xml
-std::string ToHexString(const char* data, int sz)
-{
-	std::stringstream stream;
-	for(int i = 0; i < sz; i++)
-		stream << std::hex << std::setw(2) << std::setfill('0') << (int)(unsigned char)data[i];
-
-	return stream.str();
-}
-
-std::string FromHexString(const char* data, int sz)
-{
-	std::string output;
-
-	for(int i = 0; i < sz; i += 2)
-	{
-		int dig0 = (data[i + 0] >= '0' && data[i + 0] <= '9' ? data[i + 0] - '0' : data[i + 0] - 'a' + 10);
-		int dig1 = (data[i + 1] >= '0' && data[i + 1] <= '9' ? data[i + 1] - '0' : data[i + 1] - 'a' + 10);
-
-		int val = 16 * dig0 + dig1;
-		output.push_back(val);
-	}
-
-	return output;
-}
-/////////////////////
 
 #define MAXTHREADS 100
 
@@ -115,6 +90,13 @@ void* ServerWorker(void* arg)
 	std::cout << "private key: "; HexDump((char*)private_key, 32);
 	std::cout << "public  key: "; HexDump((char*)public_key,  32);
 	bool auth = false;
+
+	std::string userdir;
+	XMLDocument userFiles;
+	std::string filename;
+	std::string filenameenc;
+	std::ofstream fout;
+	int currfilesize;
 
 	while(true)
 	{
@@ -215,9 +197,17 @@ void* ServerWorker(void* arg)
 					user->InsertNewChildElement("salt-p")->SetText(ToHexString((char*)salt_p, 32).c_str());
 					user->InsertNewChildElement("salt-e")->SetText(ToHexString((char*)salt_e, 32).c_str());
 
+					mkdir( ("usr/" + username).c_str(), 0775 );
+
+					XMLElement* files = userFiles.NewElement("files");
+					userFiles.InsertEndChild(files);
+					userFiles.SaveFile( ("usr/" + username + "/files.xml").c_str() );
+
 					Packet response(Flags::ACCEPT, (char*)salt_e, 32);
 					response.Send(info.clientSocket);
-					auth = false;
+
+					userdir = ("usr/" + username + "/");
+					auth = true;
 				}
 			}
 			break;
@@ -283,6 +273,8 @@ void* ServerWorker(void* arg)
 
 						Packet response(Flags::ACCEPT, (char*)salt_e, 32);
 						response.Send(info.clientSocket);
+						userdir = ("usr/" + username + "/");
+						userFiles.LoadFile( (userdir + "files.xml").c_str() );
 						auth = true;
 						break;
 					}
@@ -290,7 +282,93 @@ void* ServerWorker(void* arg)
 
 				Packet response(Flags::FAILURE, NULL, 0);
 				response.Send(info.clientSocket);
+
 				auth = false;
+			}
+			break;
+
+			case Flags::SEND_FILE_BEGIN: // FIX: if file exists then ask for confirmation to overwrite
+			{
+				std::stringstream stream;
+				stream.write(packet.data, packet.size - 8);
+
+				stream >> filename;
+				stream >> currfilesize;
+
+				std::cout << "preparing to write " << userdir + filename << '\n';
+				fout.open(userdir + filename);
+			}
+			break;
+
+			case Flags::FILE_CHUNK:
+			{
+				std::cout << "FILE CHUNK SIZE: " << packet.size - 8 << '\n';
+				fout.write(packet.data, packet.size - 8);
+			}
+			break;
+
+			case Flags::SEND_FILE_END:
+			{
+				// check file intact
+
+				// make backup
+
+				XMLElement* file = userFiles.FirstChildElement("files")->InsertNewChildElement("file");
+
+				// FIX: hash file name
+
+				// FIX: there could be a filename collision. use scrypt with salt.
+
+				file->InsertNewChildElement("name")->SetText(filename.c_str());
+				file->InsertNewChildElement("size")->SetText(currfilesize);
+				file->InsertNewChildElement("birth")->SetText(time(NULL));
+
+				std::cout << "FILE TRANSFER COMPLETE!\n";
+				fout.close(); // WARN: do i have to manually add '\n' at end..?
+			}
+			break;
+
+			case Flags::DIR_LIST_REQUEST:
+			{
+				if(packet.size == 8)
+				{
+					XMLElement* files = userFiles.FirstChildElement("files");
+					XMLElement* file = files->FirstChildElement("file");
+
+					std::stringstream stream;
+
+					while(file)
+					{
+						std::string name = file->FirstChildElement("name")->GetText();
+
+						stream << name << '\n';
+						file = file->NextSiblingElement("file");
+					}
+
+					if(stream.str().size() != 0)
+					{
+						std::cout << "Sending to client list stream: " << stream.str() << "; stream size is: " << stream.str().size() << '\n';
+						Packet response(Flags::DIR_LIST, stream.str().data(), stream.str().size());
+						std::cout << "Sending to client list stream: " << std::string(response.data) << "; stream size is: " << response.size << '\n';
+						response.Send(info.clientSocket);
+					}
+					else
+					{
+						Packet response(Flags::DIR_LIST, nullptr, 0);
+						response.Send(info.clientSocket);
+					}
+				}
+			}
+			break;
+
+			case Flags::FILE_REQUEST:
+			{
+				std::string filename = std::string(packet.data, packet.size - 8);
+				std::string filepath = userdir + filename;
+				// prepend cwd
+				
+				std::cout << "filename: " << filename << '\n';
+				SendFile(filepath.c_str(), info.clientSocket, (unsigned char*)"", false);
 			}
 			break;
 
@@ -303,6 +381,7 @@ void* ServerWorker(void* arg)
 	}
 
 	cleanup:
+	userFiles.SaveFile( (userdir + "files.xml").c_str() );
 	info.alive = false;
 	close(info.clientSocket);
 	pthread_mutex_lock(&glb::mut);
@@ -321,12 +400,19 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	if(glb::doc.LoadFile("users.xml"))
+	if(isdir("usr") == false)
+	{
+		mkdir("usr", 0775);
+		std::cout << "no!\n";
+	}
+
+	if(glb::doc.LoadFile("usr/users.xml"))
 	{
 		std::cout << "database not found\n";
 		XMLElement* users = glb::doc.NewElement("users");
 		glb::doc.InsertEndChild(users);
 	}
+
 	//////////////////////
 
 	glb::listenSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -441,6 +527,6 @@ int main(int argc, char** argv)
 	close(glb::listenSocket);
 
 	/////
-	glb::doc.SaveFile("users.xml");
+	glb::doc.SaveFile("usr/users.xml");
 	return 0;
 }

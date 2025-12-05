@@ -7,6 +7,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <iostream>
+#include <cassert>
 
 #include "utils.h"
 
@@ -133,4 +134,117 @@ std::string Decrypt(const char* data, int sz, unsigned char key[32])
 		printf("DECRYPT ERROR OH NO\n");
 
 	return output;
+}
+
+void SendFile(const char* filepath, int socket, unsigned char key[32], bool encrypt)
+{
+	std::cout << "SENDING TO CLIENT: " << filepath << '\n';
+	int fd = open(filepath, O_RDONLY);
+
+	int size = lseek(fd, 0, SEEK_END);
+	lseek(fd, 0, SEEK_SET);
+
+	std::string base(basename(filepath));
+
+	// FIX: use a hash for this so you don't go over NAMEMAX 255B
+	// std::string filenameenc = Encrypt(base.data(), base.size(), glb.fileKey);
+	// filenameenc = ToHexString(filenameenc.data(), filenameenc.size());
+	//
+	// std::string filenamehash;
+	// crypto_hash_sha256((unsigned char*)filenamehash.data(), (unsigned char*)base.c_str(), base.size());
+	// filenamehash = ToHexString(filenamehash.data(), filenamehash.size());
+
+	std::string data = std::string(basename(filepath)) + "\n" + std::to_string(size) + "\n";
+	Packet packet(Flags::SEND_FILE_BEGIN, &data[0], data.size());
+	packet.Send(socket);
+
+	packet.data = (char*)realloc(packet.data, 4096 + 12 + 16);
+
+	while(size > 0)
+	{
+		// not ideal
+
+		// packet.flag = Flags::FILE_CHUNK;
+		// int bytes = read(fd, packet.data, 4096);
+
+		packet.flag = Flags::FILE_CHUNK;
+
+		int bytes;
+
+		if(encrypt)
+		{
+			bytes = read(fd, packet.data, 4096);
+
+			std::string encryptedData = Encrypt(packet.data, bytes, key);
+			memcpy(packet.data, &encryptedData[0], encryptedData.size());
+			assert(encryptedData.size() == bytes + 12 + 16);
+			packet.size = encryptedData.size() + 8;
+		}
+		else
+		{
+			// this assumes the file was already encrypred. the function is not that clear with enc = false. not ideal
+			packet.flag = Flags::FILE_CHUNK;
+			bytes = read(fd, packet.data, 4096 + 12 + 16);
+			packet.size = bytes + 8;
+		}
+
+		size -= bytes;
+
+		packet.Send(socket);
+		std::cout << "sending file chunk! size is " << packet.size << '\n';
+	}
+
+	packet.flag = Flags::SEND_FILE_END;
+	free(packet.data);
+	packet.data = nullptr;
+	packet.size = 8;
+	packet.Send(socket);
+
+	close(fd);
+}
+
+// should make the server use this too
+// I COULD ALSO JUST make 4 functions GetFileDecrypt GetFile SendFileEncrypt SendFile. that's stupid maybe not
+void RecvFile(const char* filepath, int socket, unsigned char key[32], bool decrypt)
+{
+
+	// could send this from outside the func
+	Packet packet(Flags::FILE_REQUEST, filepath, strlen(filepath));
+	packet.Send(socket);
+
+	packet.Recv(socket); // FILE_SEND_BEGIN ignore for now
+	assert(packet.flag == Flags::SEND_FILE_BEGIN);
+
+	std::string downpath = getenv("HOME");
+	downpath += "/Downloads/";
+	downpath += filepath;
+
+	// FIX: check if filename is taken. if it is rename the file to file(1).txt or whatever
+
+	int fd = open(downpath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
+
+	while(1)
+	{
+		packet.Recv(socket);
+
+		if(packet.flag == Flags::SEND_FILE_END)
+			break;
+
+		std::string chunk;
+
+		if(decrypt)
+		{
+			chunk = Decrypt(packet.data, packet.size - 8, key);
+		}
+		else
+		{
+			chunk = std::string(packet.data, packet.size - 8);
+		}
+
+		write(fd, chunk.data(), chunk.size());
+		std::cout << "receiving file chunk! size is " << packet.size << '\n';
+		std::cout << chunk.data() << '\n';
+	}
+
+	close(fd);
 }

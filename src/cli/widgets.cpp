@@ -61,7 +61,7 @@ void AuthMenu()
 
 	ImGui::Begin("Login");
 	ImGui::Text("Hello");
-	ImGui::InputText("Username", glb.username, 64);
+	ImGui::InputText("Username", glb.username, 64); // FIX: LIMIT CHARACTERS TO ALPHANUMERIC
 	ImGui::InputText("Password", glb.password, 64);
 	if(ImGui::Button("Login"))
 	{
@@ -129,11 +129,13 @@ void FileViewMenu()
 
 		if(ImGui::Selectable(( (isDir ? " " : "") + file).c_str(), false))
 		{
+			RecvFile(file.c_str(), glb.serverSocket, glb.fileKey, true);
+
 			if(isDir)
 			{
 				glb.cwd = fs::canonical(glb.cwd + "/" + file);
 				std::cout << glb.cwd << '\n';
-				glb.dirContents = Crawl(glb.cwd);
+				// glb.dirContents = Crawl(glb.cwd);
 
 				if(isDir)
 					ImGui::PopStyleColor();

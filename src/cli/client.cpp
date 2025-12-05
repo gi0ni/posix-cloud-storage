@@ -12,6 +12,7 @@
 #include "../packet.h"
 #include "state.h"
 #include "widgets.h"
+#include "network.h"
 
 #include "sodium/core.h"
 
@@ -73,7 +74,19 @@ int main(int argc, char** argv)
 				break;
 
 				case SDL_DROPFILE:
+				{
 					std::cout << event.drop.file << '\n';
+
+					if(glb.auth == true)
+					{
+						SendFile(event.drop.file, glb.serverSocket, glb.fileKey); // FIX: check if file exists before sending message begin to server
+						UpdateDirListContents();
+					}
+					else
+					{
+						// FIX:
+					}
+				}
 				break;
 			}
 

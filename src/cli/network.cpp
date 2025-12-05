@@ -6,6 +6,7 @@
 
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <signal.h>
@@ -16,6 +17,9 @@
 #include <stdlib.h>
 
 #include <iostream>
+#include <vector>
+#include <string>
+#include <sstream>
 
 void SigInt_Handler(int sig)
 {
@@ -89,6 +93,7 @@ void Connect()
 		// refused
 	}
 
+	// TODO: send a known encrypted message to make sure the key exchange actually worked..?
 	printf(OK "KEY EXCHANGE SUCCESS\n" CLEAR);
 }
 
@@ -118,5 +123,43 @@ int SendAuthReq(Flags flag)
 	HexDump((char*)glb.salt_e, 32);
 
 	printf(OK "AUTH SUCCESS\n" CLEAR);
+
+	int err = crypto_pwhash_argon2id( // FIX:
+			glb.fileKey,
+			32,
+			glb.password,
+			strlen(glb.password),
+			glb.salt_e,
+			crypto_pwhash_argon2id_OPSLIMIT_INTERACTIVE,
+			crypto_pwhash_argon2id_MEMLIMIT_INTERACTIVE,
+			crypto_pwhash_argon2id_ALG_ARGON2ID13
+	);
+
+	std::cout << "FILE KEY: ";
+	HexDump((char*)glb.fileKey, 32);
+
+	UpdateDirListContents();
+
 	return 0;
+}
+
+void UpdateDirListContents()
+{
+	// ask list files 
+	Packet packet2(Flags::DIR_LIST_REQUEST, NULL, 0);
+	packet2.Send(glb.serverSocket);
+	packet2.Recv(glb.serverSocket);
+
+	std::stringstream stream;
+	stream.write(packet2.data, packet2.size - 8); // FIX: confusignly named packet2. just make a move ctor
+
+	std::cout << "recv: " << packet2.size << '\n';
+
+	glb.dirContents.clear();
+
+	std::string filename;
+	while(std::getline(stream, filename, '\n'))
+	{
+		glb.dirContents.push_back(filename);
+	}
 }

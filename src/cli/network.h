@@ -5,5 +5,6 @@
 
 void Connect();
 int SendAuthReq(Flags flag);
+void UpdateDirListContents();
 
 #endif
