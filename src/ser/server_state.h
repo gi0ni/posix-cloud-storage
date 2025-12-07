@@ -25,6 +25,8 @@ class State
 
 	XMLDocument doc;
 	pthread_mutex_t xmldocwriteMut;
+
+	int serverTimeout = 120;
 };
 
 extern State& glb;

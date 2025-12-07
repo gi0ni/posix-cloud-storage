@@ -54,7 +54,7 @@ int main(int argc, char** argv)
 	int frame = 0;
 	// std::cout << "" << '\n';
 
-	glb.cwd = ".";
+	glb.cwd = "/";
 	// glb.dirContents = Crawl(glb.cwd);
 
 	while(glb.windowShouldClose == false)

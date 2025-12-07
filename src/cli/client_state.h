@@ -39,7 +39,8 @@ class State
 	std::string errormsg;
 
 	std::string cwd;
-	std::vector<std::string> dirContents;
+	std::vector<std::pair<std::string, bool>> dirContents;
+	char inputDirName[128];
 
 	static State& GetInstance();
 };

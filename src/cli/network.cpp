@@ -20,6 +20,7 @@
 #include <vector>
 #include <string>
 #include <sstream>
+#include <algorithm>
 
 void SigInt_Handler(int sig)
 {
@@ -29,6 +30,11 @@ void SigInt_Handler(int sig)
 	printf(WARN "\nDisconnected forcefully.\n" CLEAR);
 	close(glb.serverSocket);
 	exit(1);
+}
+
+void SigPipe_Handler(int sig)
+{
+	printf("SIGPIPE\n");
 }
 
 void Connect()
@@ -41,6 +47,7 @@ void Connect()
 	}
 
 	signal(SIGINT, SigInt_Handler);
+	signal(SIGPIPE, SigPipe_Handler);
 
 	sockaddr_in serverAddr;
 	memset(&serverAddr, 0, sizeof(serverAddr));
@@ -55,6 +62,7 @@ void Connect()
 		PrintErr("connect");
 		glb.error = true;
 		glb.errormsg = std::string(strerror(errno));
+		return;
 	}
 	else
 	{
@@ -97,6 +105,7 @@ void Connect()
 	printf(OK "KEY EXCHANGE SUCCESS\n" CLEAR);
 }
 
+// FIX: crashes sometimes on login
 int SendAuthReq(Flags flag)
 {
 	std::string data = std::string(glb.username) + '\n' + glb.password + '\n';
@@ -110,8 +119,15 @@ int SendAuthReq(Flags flag)
 	std::cout << "MAC       : "; HexDump(std::string(&encrypted_data[encrypted_data.size() - 16], 16));
 
 	Packet packet(flag, &encrypted_data[0], encrypted_data.size());
-	packet.Send(glb.serverSocket);
-	packet.Recv(glb.serverSocket);
+	try
+	{
+		packet.Send(glb.serverSocket);
+		packet.Recv(glb.serverSocket);
+	}
+	catch(std::exception& e)
+	{
+		return -1;
+	}
 
 	if(packet.flag == Flags::FAILURE)
 	{
@@ -153,13 +169,39 @@ void UpdateDirListContents()
 	std::stringstream stream;
 	stream.write(packet2.data, packet2.size - 8); // FIX: confusignly named packet2. just make a move ctor
 
+	std::cout << "Received directory listing: " << stream.str() << '\n';
 	std::cout << "recv: " << packet2.size << '\n';
 
 	glb.dirContents.clear();
+	std::cout << "after clear: " << glb.dirContents.size() << '\n';
 
-	std::string filename;
-	while(std::getline(stream, filename, '\n'))
+	while(!stream.eof())
 	{
-		glb.dirContents.push_back(filename);
+		std::string filename;
+		bool isDir;
+		stream >> isDir;
+		stream.ignore(1, '\n');
+		std::getline(stream, filename, '\n');
+
+		// FIX:
+		if(filename.size() == 0) break;
+		std::cout << isDir << ' ' << filename << '\n';
+
+		glb.dirContents.push_back(std::make_pair(filename, isDir));
 	}
+
+	std::sort(glb.dirContents.begin(), glb.dirContents.end(), [](const auto& leftpair, const auto& rightpair) {
+
+		std::string l = leftpair.first;
+		std::string r = rightpair.first;
+
+		if(leftpair.second && !rightpair.second)
+			return true;
+		if(!leftpair.second && rightpair.second)
+			return false;
+
+		return l < r;
+	});
+
+	std::cout << "sizeof dircontents: " << glb.dirContents.size() << '\n';
 }

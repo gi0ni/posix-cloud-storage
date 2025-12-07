@@ -37,6 +37,16 @@ Packet::Packet(Flags flag, const char* data, int sz)
 	this->size = 8 + sz;
 }
 
+Packet::Packet(Flags flag, std::string msg)
+{
+	this->flag = flag;
+
+	this->data = (char*)malloc(msg.size());
+	memcpy(this->data, msg.data(), msg.size());
+
+	this->size = 8 + msg.size();
+}
+
 Packet::~Packet()
 {
 	if(data != nullptr)
@@ -74,6 +84,18 @@ void Packet::Send(int fd)
 			throw std::runtime_error(std::string(strerror(errno)));
 }
 
+int Packet::GetDataSize()
+{
+	return size - 8;
+}
+
+std::string Packet::DataToStr()
+{
+	if(size == 0)
+		return "";
+	return std::string(data, size);
+}
+
 std::string Encrypt(const char* data, int sz, unsigned char key[32])
 {
 	std::string output(sz + 16, 0);
@@ -107,10 +129,9 @@ std::string Encrypt(const char* data, int sz, unsigned char key[32])
 	return final_output;
 }
 
-// FIX: does not work over ssh. use OpenSSL instead.
-std::string Decrypt(const char* data, int sz, unsigned char key[32])
+std::string DecryptSSL(const char* data, int sz, unsigned char key[32])
 {
-	std::string output(sz - 12 /*- 16 */, 0);
+	std::string plaintext(sz - 12 - 16, 0);
 	int outlen;
 
 	unsigned char nonce[12]; memcpy((char*)nonce, data, 12);
@@ -129,25 +150,18 @@ std::string Decrypt(const char* data, int sz, unsigned char key[32])
 	// 		key
 	// );
 
-	int copy;
-
-	// FIX: kinda works but crashed once..?
 	EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
-	if(!EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, NULL, NULL)) goto error;
+	if(!EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, key, nonce)) goto error;
 	printf("A\n");
-	if(!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 12, NULL)) goto error;
-	printf("B\n");
-	if(!EVP_DecryptInit_ex(ctx, NULL, NULL, key, nonce)) goto error;
-	printf("C\n");
-	if(!EVP_DecryptUpdate(ctx, (unsigned char*)&output[0], &outlen, (unsigned char*)&cyphertext[0], cyphertext.size())) goto error;
-	printf("D\n");
-	if(!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, 16, tag.data())) goto error;
-	printf("E\n");
-	copy = outlen;
-	if(EVP_DecryptFinal_ex(ctx, (unsigned char*)(output.data() + outlen), &outlen) <= 0) goto error;
 
-	if(copy != outlen)
-		printf("len is in fact not unused: %d", outlen);
+	if(!EVP_DecryptUpdate(ctx, (unsigned char*)&plaintext[0], &outlen, (unsigned char*)&cyphertext[0], cyphertext.size())) goto error;
+	printf("C\n");
+
+	if(!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, 16, &tag[0])) goto error;
+	printf("D\n");
+
+	if(EVP_DecryptFinal_ex(ctx, (unsigned char*)(plaintext.data() + outlen), &outlen) <= 0) goto error;
+	printf("E\n");
 
 	printf("F\n");
 	EVP_CIPHER_CTX_free(ctx);
@@ -158,12 +172,42 @@ std::string Decrypt(const char* data, int sz, unsigned char key[32])
 	std::cout << "MAC       : "; HexDump(std::string((char*)(data + sz - 16), 16));
 
 	std::cout << "OMG IT WORKED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n";
-	return output;
+	return plaintext;
 
 	error:
 	EVP_CIPHER_CTX_free(ctx);
 	printf("DECRYPT ERROR OH NO\n");
 	return "nope.";
+}
+
+// FIX: does not work over ssh. use OpenSSL instead.
+std::string Decrypt(const char* data, int sz, unsigned char key[32])
+{
+	std::string output(sz - 12 - 16, 0);
+	unsigned long long int mlen;
+	unsigned char nonce[12]; memcpy((char*)nonce, data, 12);
+
+	int err = crypto_aead_aes256gcm_decrypt(
+			(unsigned char*)&output[0],
+			&mlen,
+			NULL,
+			(const unsigned char*)(data + 12),
+			sz - 12,
+			NULL,
+			0,
+			nonce,
+			key
+			);
+
+	std::cout << "AES MESSAGE:\n";
+	std::cout << "nonce     : "; HexDump(std::string((char*)data, 12));
+	std::cout << "cyphertext: "; HexDump(std::string((char*)(data + 12), sz - 12 - 16));
+	std::cout << "MAC       : "; HexDump(std::string((char*)(data + sz - 16), 16));
+
+	if(err)
+		printf("DECRYPT ERROR OH NO\n");
+
+	return output;
 }
 
 void SendFile(const char* filepath, int socket, unsigned char key[32], bool encrypt)

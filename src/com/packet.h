@@ -15,12 +15,13 @@ enum Flags
 	FILE_CHUNK,
 	SEND_FILE_END,
 
-	DIR_LIST_REQUEST,
+	DIR_LIST_REQUEST, // 9
 	FILE_REQUEST,
 	DIR_LIST,
 	CHANGE_DIR,
 	FILE_REMOVE,
-	REQUEST_BACKUP
+	REQUEST_BACKUP,
+	CREATE_DIR
 };
 
 class Packet
@@ -32,14 +33,18 @@ class Packet
 
 	Packet();
 	Packet(Flags flag, const char* data, int sz);
+	Packet(Flags flag, std::string msg);
 	~Packet();
 	void Recv(int fd);
 	void Send(int fd);
-	// GetDataSize
+
+	int GetDataSize();
+	std::string DataToStr();
 };
 
 std::string Encrypt(const char* data, int sz, unsigned char key[32]);
 std::string Decrypt(const char* data, int sz, unsigned char key[32]);
+std::string DecryptSSL(const char* data, int sz, unsigned char key[32]);
 void SendFile(const char* filepath, int socket, unsigned char key[32], bool encrypt = true);
 void RecvFile(const char* filepath, int socket, unsigned char key[32], bool decrypt = true);
 

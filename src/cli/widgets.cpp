@@ -61,6 +61,10 @@ void AuthMenu()
 		if(SendAuthReq(Flags::AUTH_REQUEST))
 		{
 			glb.error = true;
+			glb.errormsg = "Lost connection";
+			glb.connected = false;
+			ImGui::End();
+			return;
 		}
 		else
 		{
@@ -97,7 +101,44 @@ void FileViewMenu()
 
 	ImGui::Begin("Files");
 
-	ImGui::Text("OUTDATED %s", (fs::canonical(glb.cwd)).c_str());
+	ImGui::Text("%s", (glb.cwd).c_str());
+	if(ImGui::Button("Create Folder"))
+	{
+		Packet packet(Flags::CREATE_DIR, glb.inputDirName, strlen(glb.inputDirName));
+		packet.Send(glb.serverSocket);
+		packet.Recv(glb.serverSocket);
+
+		if(packet.flag == Flags::FAILURE)
+		{
+			printf(ERR "%s\n" CLEAR, packet.DataToStr().c_str());
+		}
+
+		UpdateDirListContents();
+	}
+
+	if(ImGui::Button("TAKE ME BACK"))
+	{
+		std::string dir("../");
+		Packet packet(Flags::CHANGE_DIR, dir.data(), dir.size());
+		packet.Send(glb.serverSocket);
+		packet.Recv(glb.serverSocket);
+
+		if(packet.flag == Flags::FAILURE)
+		{
+			printf(ERR "%s\n" CLEAR, packet.DataToStr().c_str());
+		}
+
+		UpdateDirListContents();
+
+		int index = glb.cwd.substr(0, glb.cwd.size() - 1).find_last_of("/");
+		glb.cwd = glb.cwd.substr(0, index + 1);
+		if(glb.cwd == "")
+			glb.cwd = "/";
+	}
+
+	ImGui::SameLine();
+
+	ImGui::InputText("##dirname", glb.inputDirName, 128);
 	// FIX: crashes when minimizing window
 	if(!ImGui::BeginListBox("##filelist", ImGui::GetContentRegionAvail())) // FIX: will return error if too small or hidden. need to handle that
 	{
@@ -108,9 +149,10 @@ void FileViewMenu()
 	ImDrawList& render = *ImGui::GetWindowDrawList();
 
 	int index = 0;
-	for(auto file : glb.dirContents)
+	for(auto pair : glb.dirContents)
 	{
-		bool isDir = fs::is_directory(glb.cwd + "/" + file);
+		std::string file = pair.first;
+		bool isDir = pair.second;
 
 		if(isDir)
 			ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 152, 65, 255));
@@ -120,19 +162,25 @@ void FileViewMenu()
 
 		render.ChannelsSetCurrent(1);
 
-		if(ImGui::Selectable(( (isDir ? " " : "") + file).c_str(), false))
+		if(ImGui::Selectable(( (isDir ? " " : "") + file + "##selectable").c_str(), false))
 		{
-			RecvFile(file.c_str(), glb.serverSocket, glb.fileKey, true);
-
 			if(isDir)
 			{
-				glb.cwd = fs::canonical(glb.cwd + "/" + file);
-				std::cout << glb.cwd << '\n';
-				// glb.dirContents = Crawl(glb.cwd);
+				Packet packet(Flags::CHANGE_DIR, file.data(), file.size());
+				packet.Send(glb.serverSocket);
+				packet.Recv(glb.serverSocket);
 
-				if(isDir)
-					ImGui::PopStyleColor();
-				break;
+				if(packet.flag == Flags::FAILURE)
+				{
+					printf(ERR "%s\n" CLEAR, packet.DataToStr().c_str());
+				}
+
+				UpdateDirListContents();
+				glb.cwd += (file + "/");
+			}
+			else
+			{
+				RecvFile(file.c_str(), glb.serverSocket, glb.fileKey, true);
 			}
 		}
 		if(isDir)
