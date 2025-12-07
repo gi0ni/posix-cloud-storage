@@ -10,7 +10,7 @@
 
 #include "../utils.h"
 #include "../packet.h"
-#include "state.h"
+#include "client_state.h"
 #include "widgets.h"
 #include "network.h"
 
@@ -98,6 +98,8 @@ int main(int argc, char** argv)
 		ImGui::NewFrame();
 
 		ImGui::PushFont(glb.mainFont);
+
+		// FIX: throw exception when server does not respond and catch it here
 		ConnectMenu(); // FIX: needs to let you try again. not just crash the entire app
 		AuthMenu();
 		FileViewMenu();

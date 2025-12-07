@@ -1,6 +1,6 @@
 #include "network.h"
 
-#include "state.h"
+#include "client_state.h"
 #include "../utils.h"
 #include "../packet.h"
 

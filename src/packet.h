@@ -18,7 +18,8 @@ enum Flags
 	DIR_LIST_REQUEST,
 	FILE_REQUEST,
 	DIR_LIST,
-	CHANGE_DIR
+	CHANGE_DIR,
+	FILE_REMOVE
 };
 
 class Packet

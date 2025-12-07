@@ -106,7 +106,7 @@ std::string Encrypt(const char* data, int sz, unsigned char key[32])
 	return final_output;
 }
 
-// FIX: looks like this randomly doesnt work either
+// FIX: does not work over ssh. use OpenSSL instead.
 std::string Decrypt(const char* data, int sz, unsigned char key[32])
 {
 	std::string output(sz - 12 - 16, 0);
@@ -137,6 +137,7 @@ std::string Decrypt(const char* data, int sz, unsigned char key[32])
 }
 
 void SendFile(const char* filepath, int socket, unsigned char key[32], bool encrypt)
+// think of encrypt as - is the file already encrypted?
 {
 	std::cout << "SENDING TO CLIENT: " << filepath << '\n';
 	int fd = open(filepath, O_RDONLY);
