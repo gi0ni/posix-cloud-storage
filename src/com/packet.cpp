@@ -11,7 +11,8 @@
 
 #include "utils.h"
 
-#include <sodium/crypto_aead_aes256gcm.h>
+#include "sodium.h"
+#include <openssl/evp.h>
 
 Packet::Packet()
 {
@@ -109,31 +110,60 @@ std::string Encrypt(const char* data, int sz, unsigned char key[32])
 // FIX: does not work over ssh. use OpenSSL instead.
 std::string Decrypt(const char* data, int sz, unsigned char key[32])
 {
-	std::string output(sz - 12 - 16, 0);
-	unsigned long long int mlen;
-	unsigned char nonce[12]; memcpy((char*)nonce, data, 12);
+	std::string output(sz - 12 /*- 16 */, 0);
+	int outlen;
 
-	int err = crypto_aead_aes256gcm_decrypt(
-			(unsigned char*)&output[0],
-			&mlen,
-			NULL,
-			(const unsigned char*)(data + 12),
-			sz - 12,
-			NULL,
-			0,
-			nonce,
-			key
-	);
+	unsigned char nonce[12]; memcpy((char*)nonce, data, 12);
+	std::string cyphertext = std::string(data).substr(12, sz - 12 - 16);
+	std::string tag = std::string(data + sz - 16, 16);
+
+	// int err = crypto_aead_aes256gcm_decrypt(
+	// 		(unsigned char*)&output[0],
+	// 		&mlen,
+	// 		NULL,
+	// 		(const unsigned char*)(data + 12),
+	// 		sz - 12,
+	// 		NULL,
+	// 		0,
+	// 		nonce,
+	// 		key
+	// );
+
+	int copy;
+
+	// FIX: kinda works but crashed once..?
+	EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+	if(!EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, NULL, NULL)) goto error;
+	printf("A\n");
+	if(!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 12, NULL)) goto error;
+	printf("B\n");
+	if(!EVP_DecryptInit_ex(ctx, NULL, NULL, key, nonce)) goto error;
+	printf("C\n");
+	if(!EVP_DecryptUpdate(ctx, (unsigned char*)&output[0], &outlen, (unsigned char*)&cyphertext[0], cyphertext.size())) goto error;
+	printf("D\n");
+	if(!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, 16, tag.data())) goto error;
+	printf("E\n");
+	copy = outlen;
+	if(EVP_DecryptFinal_ex(ctx, (unsigned char*)(output.data() + outlen), &outlen) <= 0) goto error;
+
+	if(copy != outlen)
+		printf("len is in fact not unused: %d", outlen);
+
+	printf("F\n");
+	EVP_CIPHER_CTX_free(ctx);
 
 	std::cout << "AES MESSAGE:\n";
 	std::cout << "nonce     : "; HexDump(std::string((char*)data, 12));
 	std::cout << "cyphertext: "; HexDump(std::string((char*)(data + 12), sz - 12 - 16));
 	std::cout << "MAC       : "; HexDump(std::string((char*)(data + sz - 16), 16));
 
-	if(err)
-		printf("DECRYPT ERROR OH NO\n");
-
+	std::cout << "OMG IT WORKED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n";
 	return output;
+
+	error:
+	EVP_CIPHER_CTX_free(ctx);
+	printf("DECRYPT ERROR OH NO\n");
+	return "nope.";
 }
 
 void SendFile(const char* filepath, int socket, unsigned char key[32], bool encrypt)

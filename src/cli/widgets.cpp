@@ -21,14 +21,7 @@ void ConnectMenu()
 	ImGuiIO& io = ImGui::GetIO();
 
 	ImGui::Begin("Connect");
-	ImGui::Text("%.1f", io.Framerate);
-	ImGui::Text("%d", glb.value);
-
-	if(ImGui::Button("CLICK ME"))
-	{
-		glb.flag = true;
-		glb.counter++;
-	}
+	// ImGui::Text("%.1f", io.Framerate);
 
 	if(glb.flag == true)
 	{
@@ -104,7 +97,7 @@ void FileViewMenu()
 
 	ImGui::Begin("Files");
 
-	ImGui::Text("%s", (fs::canonical(glb.cwd)).c_str());
+	ImGui::Text("OUTDATED %s", (fs::canonical(glb.cwd)).c_str());
 	// FIX: crashes when minimizing window
 	if(!ImGui::BeginListBox("##filelist", ImGui::GetContentRegionAvail())) // FIX: will return error if too small or hidden. need to handle that
 	{
