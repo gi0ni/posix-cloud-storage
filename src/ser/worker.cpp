@@ -21,8 +21,8 @@
 
 using namespace tinyxml2;
 
-#include "../packet.h"
-#include "../utils.h"
+#include "packet.h"
+#include "utils.h"
 #include "server_state.h"
 
 void* ServerWorker(void* arg)

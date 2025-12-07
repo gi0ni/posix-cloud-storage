@@ -1,8 +1,8 @@
 #include "network.h"
 
 #include "client_state.h"
-#include "../utils.h"
-#include "../packet.h"
+#include "utils.h"
+#include "packet.h"
 
 #include <unistd.h>
 #include <fcntl.h>

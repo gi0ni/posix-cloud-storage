@@ -8,8 +8,8 @@
 #include <cstring>
 #include <iostream>
 
-#include "../utils.h"
-#include "../packet.h"
+#include "utils.h"
+#include "packet.h"
 #include "client_state.h"
 #include "widgets.h"
 #include "network.h"

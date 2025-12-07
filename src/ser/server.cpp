@@ -18,8 +18,8 @@
 #include <tinyxml2.h>
 #include <sodium.h>
 
-#include "../utils.h"
-#include "../packet.h"
+#include "utils.h"
+#include "packet.h"
 #include "worker.h"
 #include "server_state.h"
 

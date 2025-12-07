@@ -4,7 +4,7 @@
 
 #include "client_state.h"
 #include "network.h"
-#include "../utils.h"
+#include "utils.h"
 
 #include <iostream>
 #include <filesystem>
