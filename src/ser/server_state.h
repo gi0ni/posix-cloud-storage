@@ -21,7 +21,7 @@ class State
 	int listenSocket;
 	int clientCount;
 
-	pthread_mutex_t mut;
+	pthread_mutex_t listenSocketMut;
 
 	XMLDocument doc;
 	pthread_mutex_t xmldocwriteMut;

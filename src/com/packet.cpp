@@ -235,6 +235,8 @@ void SendFile(const char* filepath, int socket, unsigned char key[32], bool encr
 
 	packet.data = (char*)realloc(packet.data, 4096 + 12 + 16);
 
+	Packet response;
+
 	while(size > 0)
 	{
 		// not ideal
@@ -265,8 +267,12 @@ void SendFile(const char* filepath, int socket, unsigned char key[32], bool encr
 
 		size -= bytes;
 
+		if(size < 0)
+			std::cout << "SIZE IS NEGATIVE. SOMETHING IS WRONG.\n";
+
 		packet.Send(socket);
-		std::cout << "sending file chunk! size is " << packet.size << '\n';
+		response.Recv(socket);
+		std::cout << "sending file chunk! size is " << packet.size << "left is: " << size << '\n';
 	}
 
 	packet.flag = Flags::SEND_FILE_END;
@@ -319,6 +325,8 @@ void RecvFile(const char* filepath, int socket, unsigned char key[32], bool decr
 		write(fd, chunk.data(), chunk.size());
 		std::cout << "receiving file chunk! size is " << packet.size << '\n';
 		std::cout << chunk.data() << '\n';
+		Packet response(Flags::ACCEPT, NULL, 0);
+		response.Send(socket);
 	}
 
 	close(fd);

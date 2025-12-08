@@ -40,7 +40,7 @@ void SigPipe_Handler(int sig)
 	exit(1);
 }
 
-ThreadInfo threadPool[MAXTHREADS];
+pthread_t threadPool[MAX_THREADS];
 
 int main(int argc, char** argv)
 {
@@ -77,7 +77,7 @@ int main(int argc, char** argv)
 
 	int flag = 1;
 	setsockopt(glb.listenSocket, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
-	fcntl(glb.listenSocket, F_SETFL, fcntl(glb.listenSocket, F_GETFL, 0) | O_NONBLOCK);
+	// fcntl(glb.listenSocket, F_SETFL, fcntl(glb.listenSocket, F_GETFL, 0) | O_NONBLOCK);
 
 	sockaddr_in serverAddr;
 	memset(&serverAddr, 0, sizeof(serverAddr));
@@ -117,59 +117,30 @@ int main(int argc, char** argv)
 
 	printf(WARN "Server started.\nWaiting on IP address %s:%d...\n\n" CLEAR, inet_ntoa({serverAddr.sin_addr.s_addr}), ntohs(serverAddr.sin_port));
 
-	int serverTimeout = 120;
+	for(int i = 0; i < MAX_THREADS; i++)
+	{
+		ThreadInfo* info = new ThreadInfo();
+		info->id = i;
+		info->alive = true;
+		pthread_create(&threadPool[i], NULL, ServerWorker, info);
+	}
 
 	while(true)
 	{
 		// FIX: use alarm with non blocking socket instead
 		if(glb.clientCount == 0)
 		{
-			if(serverTimeout % 20 == 0 || serverTimeout < 10)
-				printf("Server times out in %d second(s)...\n", serverTimeout);
+			if(glb.serverTimeout % 20 == 0 || glb.serverTimeout < 10)
+				printf("Server times out in %d second(s)...\n", glb.serverTimeout);
 
 			int step = 1;
-			serverTimeout -= step;
+			glb.serverTimeout -= step;
 
-			if(serverTimeout <= 0)
+			if(glb.serverTimeout <= 0)
 				break;
 		}
 
 		sleep(1);
-
-		int clientSocket;
-		sockaddr_in clientAddr;
-		socklen_t addrLength = sizeof(clientAddr);
-
-		clientSocket = accept(glb.listenSocket, (sockaddr*)&clientAddr, &addrLength);
-		if(clientSocket < 0)
-		{
-			if(errno != EAGAIN && errno != EWOULDBLOCK)
-			{
-				PrintErr("accept");
-				close(glb.listenSocket);
-				return 1;
-			}
-		}
-		else
-		{
-			printf(WARN "\nClient %d connected from %s:%d.\n" CLEAR, glb.clientCount, inet_ntoa({clientAddr.sin_addr.s_addr}), clientAddr.sin_port);
-
-			int threadIndex = 0;
-			for(int i = 0; i < MAXTHREADS; i++)
-				if(threadPool[i].alive == false)
-				{
-					threadIndex = i;
-					break;
-				}
-
-			ThreadInfo& info = threadPool[threadIndex];
-			info.clientSocket = clientSocket;
-			info.id = glb.clientCount;
-			pthread_create(&info.thread, NULL, ServerWorker, &info);
-
-			glb.clientCount++;
-			serverTimeout = 120;
-		}
 	}
 
 	printf(WARN "Server terminated.\n" CLEAR);
