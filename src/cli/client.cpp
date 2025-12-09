@@ -89,7 +89,7 @@ int main(int argc, char** argv)
 		Packet packet(Flags::QUIT, NULL, 0);
 		packet.Send(glb.serverSocket);
 
-		printf(WARN "Disconnected from server.\n" CLEAR);
+		printf(WARN "\nDisconnected from server.\n" CLEAR);
 		close(glb.serverSocket);
 	}
 

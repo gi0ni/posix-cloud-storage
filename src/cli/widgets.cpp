@@ -27,7 +27,7 @@ void ConnectMenu()
 	if(glb.error)
 	{
 		ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 64, 32, 255));
-		ImGui::Text("ERR: %s!", glb.errormsg.c_str());
+		ImGui::Text("ERR: %s!", glb.errorMsg.c_str());
 		ImGui::PopStyleColor();
 	}
 
@@ -48,11 +48,11 @@ void AuthMenu()
 	{
 		try
 		{
-			SendAuthReq(Flags::AUTH_REQUEST);
+			SendAuthReq(Flags::LOGIN_REQUEST);
 		}
 		catch(std::exception& e)
 		{
-			glb.errormsg = "Lost connection";
+			glb.errorMsg = "Lost connection";
 			glb.error = true;
 			glb.connected = false;
 			ImGui::End();
@@ -68,7 +68,7 @@ void AuthMenu()
 		}
 		catch(std::exception& e)
 		{
-			glb.errormsg = "Lost connection";
+			glb.errorMsg = "Lost connection";
 			glb.error = true;
 			glb.connected = false;
 			ImGui::End();
@@ -86,7 +86,7 @@ void AuthMenu()
 	if(glb.error)
 	{
 		ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 64, 32, 255));
-		ImGui::Text("ERR: %s!", glb.errormsg.c_str());
+		ImGui::Text("ERR: %s!", glb.errorMsg.c_str());
 		ImGui::PopStyleColor();
 	}
 
@@ -138,7 +138,7 @@ void FileViewMenu()
 	ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 152, 65, 255));
 	if(glb.cwd != "/" && ImGui::Selectable(" ..", false))
 	{
-		Packet packet(Flags::CHANGE_DIR, "../");
+		Packet packet(Flags::CHANGE_CWD, "../");
 		packet.Send(glb.serverSocket);
 		packet.Recv(glb.serverSocket);
 
@@ -171,7 +171,7 @@ void FileViewMenu()
 		{
 			if(isDir)
 			{
-				Packet packet(Flags::CHANGE_DIR, file.data(), file.size());
+				Packet packet(Flags::CHANGE_CWD, file.data(), file.size());
 				packet.Send(glb.serverSocket);
 				packet.Recv(glb.serverSocket);
 

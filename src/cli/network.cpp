@@ -61,7 +61,7 @@ void Connect()
 	if(connect(glb.serverSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)))
 	{
 		PrintErr("connect");
-		glb.errormsg = std::string(strerror(errno));
+		glb.errorMsg = std::string(strerror(errno));
 		glb.error = true;
 		return;
 	}
@@ -69,7 +69,7 @@ void Connect()
 	{
 		glb.connected = true;
 		glb.error = false;
-		printf(WARN "Connected to server.\n" CLEAR);
+		printf(WARN "Connected to server.\n\n" CLEAR);
 	}
 
 
@@ -88,10 +88,10 @@ void Connect()
 	unsigned char peer_public_key[32];
 	memcpy((char*)peer_public_key, packet.data, 32);
 
-	if(crypto_scalarmult_curve25519(glb.secret_key, private_key, peer_public_key))
+	if(crypto_scalarmult_curve25519(glb.secretKey, private_key, peer_public_key))
 	{
 		printf(ERR "Key exchange failed!\n" CLEAR);
-		glb.errormsg = std::string("Key exchange failed");
+		glb.errorMsg = std::string("Key exchange failed");
 		glb.error = true;
 
 		Packet packet(Flags::QUIT, NULL, 0);
@@ -107,16 +107,15 @@ void Connect()
 	std::cout << "private key: "; HexDump((char*)private_key, 32);
 	std::cout << " public key: "; HexDump((char*)public_key, 32);
 	std::cout << "   peer key: "; HexDump((char*)peer_public_key, 32);
-	std::cout << " secret key: "; HexDump((char*)glb.secret_key, 32);
+	std::cout << " secret key: "; HexDump((char*)glb.secretKey, 32);
 	std::cout << '\n';
 }
 
 
-// FIX: server crash on login
 void SendAuthReq(Flags flag)
 {
 	std::string data = std::string(glb.username) + '\n' + glb.password + '\n';
-	std::string encrypted_data = Encrypt(data.c_str(), data.size(), glb.secret_key);
+	std::string encrypted_data = Encrypt(data.c_str(), data.size(), glb.secretKey);
 
 	assert(encrypted_data.size() == data.size() + 12 + 16);
 
@@ -129,25 +128,26 @@ void SendAuthReq(Flags flag)
 	}
 	catch(std::exception& e)
 	{
-		throw e;
+		throw e; // FIX: ?
 	}
 
 	if(packet.flag == Flags::FAILURE)
 	{
 		printf(ERR "Failed to get authenticated!\n" CLEAR);
-		glb.errormsg = packet.DataToStr();
+		glb.errorMsg = packet.DataToStr();
 		glb.error = true;
 		return;
 	}
 
-	memcpy(glb.salt_e, packet.data, 32);
+	unsigned char salt_e[32];
+	memcpy(salt_e, packet.data, 32);
 
 	int err = crypto_pwhash_argon2id(
 			glb.fileKey,
 			32,
 			glb.password,
 			strlen(glb.password),
-			glb.salt_e,
+			salt_e,
 			crypto_pwhash_argon2id_OPSLIMIT_INTERACTIVE,
 			crypto_pwhash_argon2id_MEMLIMIT_INTERACTIVE,
 			crypto_pwhash_argon2id_ALG_ARGON2ID13
@@ -156,7 +156,7 @@ void SendAuthReq(Flags flag)
 	if(err)
 	{
 		printf(ERR "Failed to get authenticated!\n" CLEAR);
-		glb.errormsg = packet.DataToStr();
+		glb.errorMsg = packet.DataToStr();
 		glb.error = true;
 		return;
 	}
@@ -172,19 +172,13 @@ void SendAuthReq(Flags flag)
 
 void UpdateDirListContents()
 {
-	// ask list files 
-	Packet packet2(Flags::DIR_LIST_REQUEST, NULL, 0);
-	packet2.Send(glb.serverSocket);
-	packet2.Recv(glb.serverSocket);
+	Packet packet(Flags::DIR_LIST_REQUEST, NULL, 0);
+	packet.Send(glb.serverSocket);
+	packet.Recv(glb.serverSocket);
 
 	std::stringstream stream;
-	stream.write(packet2.data, packet2.size - 8); // FIX: confusignly named packet2. just make a move ctor
-
-	std::cout << "Received directory listing: " << stream.str() << '\n';
-	std::cout << "recv: " << packet2.size << '\n';
-
+	stream.write(packet.data, packet.size - 8);
 	glb.dirContents.clear();
-	std::cout << "after clear: " << glb.dirContents.size() << '\n';
 
 	while(!stream.eof())
 	{
@@ -196,7 +190,6 @@ void UpdateDirListContents()
 
 		// FIX:
 		if(filename.size() == 0) break;
-		std::cout << isDir << ' ' << filename << '\n';
 
 		glb.dirContents.push_back(std::make_pair(filename, isDir));
 	}
@@ -213,8 +206,6 @@ void UpdateDirListContents()
 
 		return l < r;
 	});
-
-	std::cout << "sizeof dircontents: " << glb.dirContents.size() << '\n';
 }
 
 void HandleDropFile(const char* filepath)

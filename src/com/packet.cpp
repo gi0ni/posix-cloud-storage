@@ -132,7 +132,7 @@ std::string DecryptSSL(const char* data, int sz, unsigned char key[32])
 	int outlen;
 
 	unsigned char nonce[12]; memcpy((char*)nonce, data, 12);
-	std::string cyphertext = std::string(data, sz).substr(12, sz - 12 - 16);
+	std::string cyphertext = std::string(data, sz).substr(12, sz - 12 - 16); // FORGOT TO ADD SZ MIGHT HAVE FIXED THE OTHER ISSUE TOO
 	std::string tag = std::string(data + sz - 16, 16);
 
 	// int err = crypto_aead_aes256gcm_decrypt(
@@ -244,7 +244,7 @@ void SendFile(const char* filepath, int socket, unsigned char key[32], bool encr
 		// packet.flag = Flags::FILE_CHUNK;
 		// int bytes = read(fd, packet.data, 4096);
 
-		packet.flag = Flags::FILE_CHUNK;
+		packet.flag = Flags::SEND_FILE_CHUNK;
 
 		int bytes;
 
@@ -260,7 +260,7 @@ void SendFile(const char* filepath, int socket, unsigned char key[32], bool encr
 		else
 		{
 			// this assumes the file was already encrypred. the function is not that clear with enc = false. not ideal
-			packet.flag = Flags::FILE_CHUNK;
+			packet.flag = Flags::SEND_FILE_CHUNK;
 			bytes = read(fd, packet.data, CHUNK_SIZE + 12 + 16);
 			packet.size = bytes + 8;
 		}
@@ -290,7 +290,7 @@ void RecvFile(const char* filepath, int socket, unsigned char key[32], bool decr
 {
 
 	// could send this from outside the func
-	Packet packet(Flags::FILE_REQUEST, filepath, strlen(filepath));
+	Packet packet(Flags::SEND_FILE_REQUEST, filepath, strlen(filepath));
 	packet.Send(socket);
 
 	packet.Recv(socket); // FILE_SEND_BEGIN ignore for now
@@ -325,7 +325,7 @@ void RecvFile(const char* filepath, int socket, unsigned char key[32], bool decr
 		write(fd, chunk.data(), chunk.size());
 		std::cout << "receiving file chunk! size is " << packet.size << '\n';
 		std::cout << chunk.data() << '\n';
-		Packet response(Flags::ACCEPT, NULL, 0);
+		Packet response(Flags::SUCCESS, NULL, 0);
 		response.Send(socket);
 	}
 

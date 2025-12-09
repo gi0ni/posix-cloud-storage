@@ -248,7 +248,7 @@ void* ServerWorker(void* arg)
 						info.userFiles->InsertEndChild(files);
 						info.userFiles->SaveFile( ("usr/" + username + "/files.xml").c_str() );
 
-						Packet response(Flags::ACCEPT, (char*)salt_e, 32);
+						Packet response(Flags::SUCCESS, (char*)salt_e, 32);
 						response.Send(clientSocket);
 
 						info.userdir = ("usr/" + username + "/");
@@ -259,7 +259,7 @@ void* ServerWorker(void* arg)
 				}
 				break;
 
-				case Flags::AUTH_REQUEST:
+				case Flags::LOGIN_REQUEST:
 				{
 					std::cout << "received: " << packet.size - 8 << '\n';
 					std::cout << packet.data << '\n';
@@ -319,7 +319,7 @@ void* ServerWorker(void* arg)
 							unsigned char salt_e[32];
 							memcpy((char*)salt_e, FromHexString(user->FirstChildElement("salt-e")->GetText(), 64).c_str(), 32);
 
-							Packet response(Flags::ACCEPT, (char*)salt_e, 32);
+							Packet response(Flags::SUCCESS, (char*)salt_e, 32);
 							response.Send(clientSocket);
 							info.userdir = ("usr/" + username + "/");
 							info.userFiles = new XMLDocument();
@@ -358,11 +358,11 @@ void* ServerWorker(void* arg)
 				}
 				break;
 
-				case Flags::FILE_CHUNK:
+				case Flags::SEND_FILE_CHUNK:
 				{
 					std::cout << "FILE CHUNK SIZE: " << packet.size - 8 << '\n';
 					write(info.fd, packet.data, packet.size - 8);
-					Packet response(Flags::ACCEPT, NULL, 0);
+					Packet response(Flags::SUCCESS, NULL, 0);
 					response.Send(clientSocket);
 				}
 				break;
@@ -422,20 +422,20 @@ void* ServerWorker(void* arg)
 						if(stream.str().size() != 0)
 						{
 							std::cout << "Sending to client list stream: " << stream.str() << "; stream size is: " << stream.str().size() << '\n';
-							Packet response(Flags::DIR_LIST, stream.str().data(), stream.str().size());
+							Packet response(Flags::SUCCESS, stream.str().data(), stream.str().size());
 							std::cout << "Sending to client list stream: " << std::string(response.data) << "; stream size is: " << response.size << '\n';
 							response.Send(clientSocket);
 						}
 						else
 						{
-							Packet response(Flags::DIR_LIST, nullptr, 0);
+							Packet response(Flags::SUCCESS, nullptr, 0);
 							response.Send(clientSocket);
 						}
 					}
 				}
 				break;
 
-				case Flags::FILE_REQUEST:
+				case Flags::SEND_FILE_REQUEST:
 				{
 					// FIX: refuse to send dirs
 					std::string filename = std::string(packet.data, packet.size - 8);
@@ -447,7 +447,7 @@ void* ServerWorker(void* arg)
 				}
 				break;
 
-				case Flags::FILE_REMOVE:
+				case Flags::FILE_DELETE:
 				{
 					// quit
 				}
@@ -489,12 +489,12 @@ void* ServerWorker(void* arg)
 
 					// FIX: check for being unable to create
 
-					Packet response(Flags::ACCEPT, NULL, 0);
+					Packet response(Flags::SUCCESS, NULL, 0);
 					response.Send(clientSocket);
 				}
 				break;
 
-				case Flags::CHANGE_DIR:
+				case Flags::CHANGE_CWD:
 				{
 					std::string dirname(packet.data, packet.size - 8);
 
@@ -503,7 +503,7 @@ void* ServerWorker(void* arg)
 						if(info.currDirXML->Parent()->ToElement() != nullptr)
 						{
 							info.currDirXML = info.currDirXML->Parent()->ToElement();
-							Packet response(Flags::ACCEPT, NULL, 0);
+							Packet response(Flags::SUCCESS, NULL, 0);
 							response.Send(clientSocket);
 							break;
 						}
@@ -526,7 +526,7 @@ void* ServerWorker(void* arg)
 						dir = dir->NextSiblingElement("dir");
 					}
 
-					Packet response(Flags::ACCEPT, NULL, 0);
+					Packet response(Flags::SUCCESS, NULL, 0);
 					response.Send(clientSocket);
 				}
 				break;
