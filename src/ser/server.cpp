@@ -19,52 +19,59 @@
 #include <sodium.h>
 
 #include "utils.h"
-#include "packet.h"
 #include "worker.h"
 #include "server_state.h"
 
+
 using namespace tinyxml2;
+
 
 void SigInt_Handler(int sig)
 {
 	printf(WARN "\nServer closed forcefully.\n" CLEAR);
-	glb.doc.SaveFile("usr/users.xml");
+	glb.usersXML.SaveFile("usr/users.xml");
 	close(glb.listenSocket);
-	// shutdown
 	exit(1);
 }
 
 void SigPipe_Handler(int sig)
 {
-	printf(ERR "SIGPIPE WHY\n" CLEAR);
-	exit(1);
+	printf(ERR "Received signal SIGPIPE!\n" CLEAR);
 }
 
-pthread_t threadPool[MAX_THREADS];
+
+void ParseArgs(int argc, char** argv);
 
 int main(int argc, char** argv)
 {
+	// init libs
+	ParseArgs(argc, argv);
+
 	if(sodium_init())
 	{
-		std::cout << "Failed to init sodium!!\n";
+		std::cout << "Failed to init sodium!\n";
 		return 1;
 	}
 
 	if(IsDirectory("usr") == false)
 	{
-		mkdir("usr", 0775);
-		std::cout << "no!\n";
+		printf(WARN "Creating dir 'usr'...\n" CLEAR);
+		if(mkdir("usr", 0775))
+		{
+			PrintErr("mkdir");
+			exit(1);
+		}
 	}
 
-	if(glb.doc.LoadFile("usr/users.xml"))
+	if(glb.usersXML.LoadFile("usr/users.xml"))
 	{
-		std::cout << "database not found\n";
-		XMLElement* users = glb.doc.NewElement("users");
-		glb.doc.InsertEndChild(users);
+		printf(WARN "Creating 'usr/users.xml'...\n" CLEAR);
+		XMLElement* users = glb.usersXML.NewElement("users");
+		glb.usersXML.InsertEndChild(users);
 	}
 
-	//////////////////////
 
+	// open connection
 	glb.listenSocket = socket(AF_INET, SOCK_STREAM, 0);
 	if(glb.listenSocket < 0)
 	{
@@ -77,32 +84,16 @@ int main(int argc, char** argv)
 
 	int flag = 1;
 	setsockopt(glb.listenSocket, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
-	// fcntl(glb.listenSocket, F_SETFL, fcntl(glb.listenSocket, F_GETFL, 0) | O_NONBLOCK);
 
 	sockaddr_in serverAddr;
 	memset(&serverAddr, 0, sizeof(serverAddr));
 
 	serverAddr.sin_family = AF_INET;
 	serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	serverAddr.sin_port = htons((short)atoi(argv[2]));
+	serverAddr.sin_port = htons((short)atoi(glb.addr));
 
 	if(bind(glb.listenSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)))
 	{
-		if(errno == EADDRINUSE)
-		{
-			printf(WARN "Address is marked as used. Trying to reuse...\n" CLEAR);
-			// int flag = 1;
-			// setsockopt(glb.listenSocket, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)); // FIX: well this doesnt seem to work
-
-			if(bind(glb.listenSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)))
-			{
-				PrintErr("bind");
-				close(glb.listenSocket);
-				return 1;
-			}
-		}
-
-		printf("I GAVE UP THE FIRST TIME\n");
 		PrintErr("bind");
 		close(glb.listenSocket);
 		return 1;
@@ -122,12 +113,12 @@ int main(int argc, char** argv)
 		ThreadInfo* info = new ThreadInfo();
 		info->id = i;
 		info->alive = true;
-		pthread_create(&threadPool[i], NULL, ServerWorker, info);
+		pthread_create(&glb.threadPool[i], NULL, ServerWorker, info);
 	}
 
 	while(true)
 	{
-		// FIX: use alarm with non blocking socket instead
+		pthread_mutex_lock(&glb.miscMut);
 		if(glb.clientCount == 0)
 		{
 			if(glb.serverTimeout % 20 == 0 || glb.serverTimeout < 10)
@@ -139,15 +130,44 @@ int main(int argc, char** argv)
 			if(glb.serverTimeout <= 0)
 				break;
 		}
+		pthread_mutex_unlock(&glb.miscMut);
 
 		sleep(1);
 	}
 
-	printf(WARN "Server terminated.\n" CLEAR);
-	// shutdown
+	printf(WARN "\nServer terminated.\n" CLEAR);
 	close(glb.listenSocket);
 
-	/////
-	glb.doc.SaveFile("usr/users.xml");
+	glb.usersXML.SaveFile("usr/users.xml");
 	return 0;
+}
+
+void ParseArgs(int argc, char** argv)
+{
+	bool malformedArgs = false;
+	int i;
+
+	for(i = 1; i < argc; i++)
+	{
+		if(strcmp(argv[i], "--port") == 0)
+		{
+			if(i + 1 < argc && strlen(argv[i + 1]) < 64)
+			{
+				strcpy(glb.addr, argv[++i]);
+			}
+		}
+
+		else
+		{
+			malformedArgs = true;
+			break;
+		}
+	}
+
+	if(malformedArgs == true)
+	{
+		printf(ERR "Malformed arguments. Received unexpected argument '%s'!\n" CLEAR, argv[i]);
+		printf(ERR "Recognized options are as follows:\n* --port <number>\n" CLEAR);
+		exit(1);
+	}
 }

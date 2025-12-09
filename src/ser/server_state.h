@@ -1,8 +1,7 @@
 #ifndef SERVER_STATE_H
 #define SERVER_STATE_H
 
-#include <vector>
-#include <string>
+#include "worker.h"
 
 #include <tinyxml2.h>
 using namespace tinyxml2;
@@ -11,21 +10,23 @@ class State
 {
 	private:
 	static State* instance;
-
 	State();
 
 	public:
 	static State& GetInstance();
 
+	char addr[64];
 	int listenSocket;
-	int clientCount;
-
 	pthread_mutex_t listenSocketMut;
+	pthread_t threadPool[MAX_THREADS];
 
-	XMLDocument doc;
-	pthread_mutex_t xmldocwriteMut;
-
+	int clientCount;
 	int serverTimeout = 120;
+
+	XMLDocument usersXML;
+	pthread_mutex_t usersXMLMut;
+
+	pthread_mutex_t miscMut;
 };
 
 extern State& glb;

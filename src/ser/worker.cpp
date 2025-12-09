@@ -13,49 +13,45 @@
 #include <cassert>
 
 #include <iostream>
-#include <fstream>
 #include <string>
 #include <sstream>
 #include <unordered_map>
 
 #include <sodium.h>
 #include <tinyxml2.h>
-
 using namespace tinyxml2;
 
-#include "packet.h"
 #include "utils.h"
+#include "packet.h"
 #include "server_state.h"
 
 struct ClientInfo
 {
-	unsigned char public_key[32];
-	unsigned char private_key[32];
-	unsigned char secret_key[32];
+	unsigned char publicKey[32];
+	unsigned char privateKey[32];
+	unsigned char secretKey[32];
 
 	bool auth = false;
 
-	std::string userdir;
-	std::string filename;
-	std::string filenameenc;
-	int fd;
-	int currfilesize;
+	std::string userDir;
+	std::string currentFilename;
+	std::string filenameEncrypted;
+	int writeFd;
+	int currentFileSz;
+	int chunkCount = 0;
+	int writeFileSz = 0;
 
 	XMLDocument* userFiles = nullptr;
-	XMLElement* currDirXML = nullptr;
+	XMLElement* cwdXML = nullptr;
 };
 
 void* ServerWorker(void* arg)
 {
 	pthread_detach(pthread_self());
-	ThreadInfo& threadinfo = *(ThreadInfo*)arg;
-	threadinfo.alive = true;
+	ThreadInfo& threadInfo = *(ThreadInfo*)arg;
+	threadInfo.alive = true;
 
 	Packet packet;
-	// std::cout << (packet.data == nullptr) << '\n';
-
-	// FIX: what if the xml doc gets destroyed midway through
-
 	std::unordered_map<int, ClientInfo> clientsInfo;
 
 	fd_set actfds;
@@ -66,20 +62,15 @@ void* ServerWorker(void* arg)
 	FD_SET(glb.listenSocket, &actfds);
 	nfds = glb.listenSocket;
 
-	int x = 0;
 	int clientsOnThisThread = 0;
 
 	while(true)
 	{
 		memcpy(&readfds, &actfds, sizeof(fd_set));
 
-		timeval tm;
-		tm.tv_sec = 5;
-		tm.tv_usec = 0;
-
-		if(select(nfds + 1, &readfds, NULL, NULL, NULL) < 0) // FIX: just make it infinite
+		if(select(nfds + 1, &readfds, NULL, NULL, NULL) < 0)
 		{
-			PrintErr("select");
+			PrintErr( ("Thread " + std::to_string(threadInfo.id) + "select").c_str() );
 			goto threadDead;
 		}
 
@@ -92,14 +83,14 @@ void* ServerWorker(void* arg)
 			clientSocket = accept(glb.listenSocket, (sockaddr*)&clientAddr, &addrLength);
 			if(clientSocket < 0)
 			{
-				PrintErr("accept");
+				PrintErr( ("Thread " + std::to_string(threadInfo.id) + "accept").c_str() );
 				close(glb.listenSocket);
 				goto threadDead;
 			}
 			else
 			{
-				printf(OK "Thread %d: " CLEAR, threadinfo.id);
-				printf(WARN "\nClient %d connected from %s:%d.\n" CLEAR, clientSocket, inet_ntoa({clientAddr.sin_addr.s_addr}), clientAddr.sin_port);
+				printf(WARN "\nThread %d: Client %d connected from %s:%d.\n" CLEAR, threadInfo.id,
+						clientSocket, inet_ntoa({clientAddr.sin_addr.s_addr}), clientAddr.sin_port);
 
 				clientsInfo.emplace(clientSocket, ClientInfo());
 
@@ -129,54 +120,44 @@ void* ServerWorker(void* arg)
 			catch(std::exception& e)
 			{
 				printf(ERR "Failed to recv from client %d.\n" CLEAR, clientSocket);
-				// goto threadDead;
-				// goto killclient;
-				printf(WARN "Client %d disconnected.\n\n" CLEAR, clientSocket);
-				if(info.userFiles != nullptr)
-				{
-					info.userFiles->SaveFile( (info.userdir + "files.xml").c_str() );
-				}
-				FD_CLR(clientSocket, &actfds);
-				close(clientSocket);
-				// pthread_mutex_lock(&glb.mut);
-				glb.clientCount -= 1;
-				// pthread_mutex_unlock(&glb.mut);
-				return NULL;
+				goto killClient;
 			}
 
-			printf(OK "Received flag %d from client.\n" CLEAR, packet.flag);
+			printf(OK "Thread %d: Received %d bytes from client %d. (%s)\n" CLEAR, threadInfo.id, packet.size, clientSocket, FlagToStr((Flags)packet.flag).c_str());
 
 			switch(packet.flag)
 			{
 				case Flags::KEY_EXCHANGE:
 				{
-					int fd = open("/dev/random", O_RDONLY);
-					read(fd, &info.private_key[0], 32);
-					close(fd);
+					RandomBytes(info.privateKey, 32);
 
-					crypto_scalarmult_curve25519_base(info.public_key, info.private_key);
-					std::cout << "private key: "; HexDump((char*)info.private_key, 32);
-					std::cout << "public  key: "; HexDump((char*)info.public_key,  32);
+					crypto_scalarmult_curve25519_base(info.publicKey, info.privateKey);
 
-					unsigned char peer_public_key[32];
-					memcpy((char*)peer_public_key, packet.data, 32);
-					std::cout << "peer key: "; HexDump((char*)peer_public_key, 32);
+					unsigned char peerPublicKey[32];
+					memcpy((char*)peerPublicKey, packet.data, 32);
 
-					int err = crypto_scalarmult_curve25519(info.secret_key, info.private_key, peer_public_key);
-					std::cout << "secret key: "; HexDump((char*)info.secret_key, 32);
+					int err = crypto_scalarmult_curve25519(info.secretKey, info.privateKey, peerPublicKey);
+					if(err)
+					{
+						printf(ERR "Key exchange failed!\n" CLEAR);
+						goto killClient;
+					}
 
-					printf("SEND BACK KEY\n");
-					std::cout << "packing: "; HexDump((char*)info.public_key, 32);
-					Packet response(Flags::KEY_EXCHANGE, (char*)info.public_key, 32);
-					std::cout << "sending: "; HexDump((char*)response.data, 32);
+					Packet response(Flags::KEY_EXCHANGE, (char*)info.publicKey, 32);
 					response.Send(clientSocket);
+
+					printf(OK "Key exchange finished successfully.\n" CLEAR);
+					std::cout << "private key: "; HexDump((char*)info.privateKey, 32);
+					std::cout << " public key: "; HexDump((char*)info.publicKey, 32);
+					std::cout << "   peer key: "; HexDump((char*)peerPublicKey, 32);
+					std::cout << " secret key: "; HexDump((char*)info.secretKey, 32);
+					std::cout << '\n';
 				}
 				break;
 
 				case Flags::REGISTER_REQUEST:
 				{
-					std::string data = DecryptSSL(packet.data, packet.size - 8, info.secret_key);
-
+					std::string data = DecryptSSL(packet.data, packet.size - 8, info.secretKey);
 					std::stringstream stream;
 					stream << data;
 
@@ -185,8 +166,9 @@ void* ServerWorker(void* arg)
 					std::string password;
 					std::getline(stream, password, '\n');
 
-					XMLElement* user = glb.doc.FirstChildElement("users")->FirstChildElement("user");
-
+					pthread_mutex_lock(&glb.usersXMLMut);
+					XMLElement* user = glb.usersXML.FirstChildElement("users")->FirstChildElement("user");
+					pthread_mutex_unlock(&glb.usersXMLMut);
 					bool found = false;
 
 					while(user)
@@ -211,13 +193,11 @@ void* ServerWorker(void* arg)
 					else
 					{
 						unsigned char hash  [64];
-						unsigned char salt_p[32]; // WARN: SALT IS 32B NOT 16B
+						unsigned char salt_p[32]; // salt is 32B not 16B
 						unsigned char salt_e[32];
 
-						int fd = open("/dev/random", O_RDONLY);
-						read(fd, salt_p, 32);
-						read(fd, salt_e, 32);
-						close(fd);
+						RandomBytes(salt_p, 32);
+						RandomBytes(salt_e, 32);
 
 						int err = crypto_pwhash_scryptsalsa208sha256(
 								hash,
@@ -227,33 +207,44 @@ void* ServerWorker(void* arg)
 								salt_p,
 								crypto_pwhash_scryptsalsa208sha256_OPSLIMIT_INTERACTIVE,
 								crypto_pwhash_scryptsalsa208sha256_MEMLIMIT_INTERACTIVE
-								);
+						);
 
-						XMLElement* users = glb.doc.FirstChildElement("users");
+						if(err)
+						{
+							printf(ERR "libsodium: scrypt failed to hash!\n" CLEAR);
+							goto killClient;
+						}
+
+						pthread_mutex_lock(&glb.usersXMLMut);
+						XMLElement* users = glb.usersXML.FirstChildElement("users");
+						pthread_mutex_unlock(&glb.usersXMLMut);
 						int count = users->ChildElementCount("user");
 
 						XMLElement* user = users->InsertNewChildElement("user");
 						user->SetAttribute("id", count);
 						user->InsertNewChildElement("username")->SetText(username.c_str());
-						user->InsertNewChildElement("hash")->SetText(ToHexString((char*)hash, 64).c_str());
-						user->InsertNewChildElement("salt-p")->SetText(ToHexString((char*)salt_p, 32).c_str());
-						user->InsertNewChildElement("salt-e")->SetText(ToHexString((char*)salt_e, 32).c_str());
+						user->InsertNewChildElement("hash")    ->SetText(ToHexString((char*)hash,   64).c_str());
+						user->InsertNewChildElement("salt-p")  ->SetText(ToHexString((char*)salt_p, 32).c_str());
+						user->InsertNewChildElement("salt-e")  ->SetText(ToHexString((char*)salt_e, 32).c_str());
 
-						mkdir( ("usr/" + username).c_str(), 0775 );
+						info.userDir = ("usr/" + username + "/");
 
-						// FIX: out of range somewhere in here
+						if(mkdir(info.userDir.c_str(), 0775))
+						{
+							PrintErr("mkdir");
+							goto killClient;
+						}
 
 						info.userFiles = new XMLDocument();
-						XMLElement* files = info.userFiles->NewElement("files");
-						info.userFiles->InsertEndChild(files);
-						info.userFiles->SaveFile( ("usr/" + username + "/files.xml").c_str() );
+						XMLElement* root = info.userFiles->NewElement("files");
+						info.userFiles->InsertEndChild(root);
+						info.userFiles->SaveFile((info.userDir + "files.xml").c_str());
+
+						info.cwdXML = info.userFiles->FirstChildElement("files");
+						assert(info.cwdXML != nullptr);
 
 						Packet response(Flags::SUCCESS, (char*)salt_e, 32);
 						response.Send(clientSocket);
-
-						info.userdir = ("usr/" + username + "/");
-						info.currDirXML = info.userFiles->FirstChildElement("files");
-						assert(info.currDirXML != nullptr);
 						info.auth = true;
 					}
 				}
@@ -261,12 +252,7 @@ void* ServerWorker(void* arg)
 
 				case Flags::LOGIN_REQUEST:
 				{
-					std::cout << "received: " << packet.size - 8 << '\n';
-					std::cout << packet.data << '\n';
-
-					std::string data = DecryptSSL(packet.data, packet.size - 8, info.secret_key);
-					std::cout << "fails in decrypt!!!\n";
-
+					std::string data = DecryptSSL(packet.data, packet.size - 8, info.secretKey);
 					std::stringstream stream;
 					stream << data;
 
@@ -275,10 +261,9 @@ void* ServerWorker(void* arg)
 					std::string password;
 					std::getline(stream, password, '\n');
 
-					std::cout << username << '\n';
-					std::cout << password << '\n';
-
-					XMLElement* user = glb.doc.FirstChildElement("users")->FirstChildElement("user");
+					pthread_mutex_lock(&glb.usersXMLMut);
+					XMLElement* user = glb.usersXML.FirstChildElement("users")->FirstChildElement("user");
+					pthread_mutex_unlock(&glb.usersXMLMut);
 
 					bool found = false;
 
@@ -312,56 +297,72 @@ void* ServerWorker(void* arg)
 								salt_p,
 								crypto_pwhash_scryptsalsa208sha256_OPSLIMIT_INTERACTIVE,
 								crypto_pwhash_scryptsalsa208sha256_MEMLIMIT_INTERACTIVE
-								);
+						);
+
+						if(err)
+						{
+							printf(ERR "libsodium: scrypt failed to hash!\n" CLEAR);
+							goto killClient;
+						}
 
 						if(memcmp(hash, oldhash, 64) == 0)
 						{
 							unsigned char salt_e[32];
 							memcpy((char*)salt_e, FromHexString(user->FirstChildElement("salt-e")->GetText(), 64).c_str(), 32);
 
-							Packet response(Flags::SUCCESS, (char*)salt_e, 32);
-							response.Send(clientSocket);
-							info.userdir = ("usr/" + username + "/");
+							info.userDir = ("usr/" + username + "/");
+
 							info.userFiles = new XMLDocument();
-							info.userFiles->LoadFile( (info.userdir + "files.xml").c_str() );
-							info.auth = true;
-							std::cout << info.userFiles->ChildElementCount() << '\n';
-							info.currDirXML = info.userFiles->RootElement();
-							if(info.currDirXML == nullptr)
+							info.userFiles->LoadFile( (info.userDir + "files.xml").c_str() );
+
+							info.cwdXML = info.userFiles->RootElement();
+							if(info.cwdXML == nullptr)
 							{
-								info.currDirXML = info.userFiles->NewElement("files");
-								info.userFiles->InsertEndChild(info.currDirXML);
+								info.cwdXML = info.userFiles->NewElement("files");
+								info.userFiles->InsertEndChild(info.cwdXML);
 							}
 
-							assert(info.currDirXML != nullptr);
+							assert(info.cwdXML != nullptr);
+
+							Packet response(Flags::SUCCESS, (char*)salt_e, 32);
+							response.Send(clientSocket);
+							info.auth = true;
 							break;
 						}
 					}
 
-					Packet response(Flags::FAILURE, "Wrong credentials");
+					Packet response(Flags::FAILURE, "Invalid credentials");
 					response.Send(clientSocket);
-
-					info.auth = false;
 				}
 				break;
 
-				case Flags::SEND_FILE_BEGIN: // FIX: if file exists then ask for confirmation to overwrite
+				case Flags::SEND_FILE_BEGIN: // FIX: ask for overwrite confirmation
 				{
+					if(info.auth == false)
+						break;
+
 					std::stringstream stream;
-					stream.write(packet.data, packet.size - 8);
+					stream << packet.DataToStr();
 
-					stream >> info.filename;
-					stream >> info.currfilesize;
+					stream >> info.currentFilename;
+					stream >> info.currentFileSz;
 
-					std::cout << "preparing to write " << info.userdir + info.filename << '\n';
-					info.fd = open( (info.userdir + info.filename).c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600 );
+					printf(WARN "\n=============== File '%s' recv started. ===============\n" CLEAR, (info.userDir + info.currentFilename).c_str());
+					info.writeFd = open( (info.userDir + info.currentFilename).c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600 ); // FIX: use an id for filename instead
 				}
 				break;
 
 				case Flags::SEND_FILE_CHUNK:
 				{
-					std::cout << "FILE CHUNK SIZE: " << packet.size - 8 << '\n';
-					write(info.fd, packet.data, packet.size - 8);
+					if(info.auth == false)
+						break;
+
+					printf(WARN "Received file chunk %d with size %dB! (%dB/%dB)\n" CLEAR, info.chunkCount, packet.GetDataSize(), info.writeFileSz, info.currentFileSz);
+					int bytes = write(info.writeFd, packet.data, packet.size - 8);
+
+					info.chunkCount++;
+					info.writeFileSz += bytes;
+
 					Packet response(Flags::SUCCESS, NULL, 0);
 					response.Send(clientSocket);
 				}
@@ -369,61 +370,77 @@ void* ServerWorker(void* arg)
 
 				case Flags::SEND_FILE_END:
 				{
-					// check file intact
+					if(info.auth == false)
+						break;
 
-					// make backup
+					XMLElement* file;
+					bool found = false;
 
-					XMLElement* file = info.currDirXML->InsertNewChildElement("file");
+					file = info.cwdXML->FirstChildElement("file");
 
-					// FIX: hash file name
+					while(file)
+					{
+						if(info.currentFilename == file->FirstChildElement("name")->GetText())
+						{
+							found = true;
+							break;
+						}
 
-					// FIX: there could be a filename collision. use scrypt with salt.
+						file = file->NextSiblingElement("file");
+					}
 
-					file->InsertNewChildElement("name")->SetText(info.filename.c_str());
-					file->InsertNewChildElement("size")->SetText(info.currfilesize);
-					file->InsertNewChildElement("birth")->SetText(time(NULL));
+					if(found == false)
+					{
+						info.cwdXML->InsertNewChildElement("file");
+						file->InsertNewChildElement("name")->SetText(info.currentFilename.c_str());
+						file->InsertNewChildElement("size")->SetText(info.currentFileSz);
+						file->InsertNewChildElement("birth")->SetText(time(NULL));
+					}
+					else
+					{
+						file->FirstChildElement("name")->SetText(info.currentFilename.c_str());
+						file->FirstChildElement("size")->SetText(info.currentFileSz);
+						file->FirstChildElement("birth")->SetText(time(NULL));
+					}
 
-					std::cout << "FILE TRANSFER COMPLETE!\n";
-					close(info.fd); // WARN: do i have to manually add '\n' at end..?
+					printf(OK "File '%s' (%dB) was downloaded succesfully.\n" CLEAR, (info.userDir + info.currentFilename).c_str(), info.currentFileSz);
+					close(info.writeFd);
 				}
 				break;
 
 				case Flags::DIR_LIST_REQUEST:
 				{
+					if(info.auth == false)
+						break;
+
 					if(packet.size == 8)
 					{
-						assert(info.currDirXML != nullptr);
-						XMLElement* file = info.currDirXML->FirstChildElement("file");
+						assert(info.cwdXML != nullptr);
 
+						XMLElement* file = info.cwdXML->FirstChildElement("file");
 						std::stringstream stream;
-
-						std::cout << "Listing for client: \n";
 
 						while(file)
 						{
 							std::string name = file->FirstChildElement("name")->GetText();
 
 							stream << false << '\n' << name << '\n';
-							std::cout << false << ' ' << name << '\n';
 							file = file->NextSiblingElement("file");
 						}
 
-						XMLElement* dir = info.currDirXML->FirstChildElement("dir");
+						XMLElement* dir = info.cwdXML->FirstChildElement("dir");
 
 						while(dir)
 						{
 							std::string name = dir->FirstChildElement("name")->GetText();
 
 							stream << true << '\n' <<  name << '\n';
-							std::cout << true << ' ' << name << '\n';
 							dir = dir->NextSiblingElement("dir");
 						}
 
 						if(stream.str().size() != 0)
 						{
-							std::cout << "Sending to client list stream: " << stream.str() << "; stream size is: " << stream.str().size() << '\n';
 							Packet response(Flags::SUCCESS, stream.str().data(), stream.str().size());
-							std::cout << "Sending to client list stream: " << std::string(response.data) << "; stream size is: " << response.size << '\n';
 							response.Send(clientSocket);
 						}
 						else
@@ -437,25 +454,24 @@ void* ServerWorker(void* arg)
 
 				case Flags::SEND_FILE_REQUEST:
 				{
+					if(info.auth == false)
+						break;
+
 					// FIX: refuse to send dirs
+
 					std::string filename = std::string(packet.data, packet.size - 8);
-					std::string filepath = info.userdir + filename;
-					// prepend cwd
+					std::string filepath = info.userDir + filename;
 
-					std::cout << "filename: " << filename << '\n';
 					SendFile(filepath.c_str(), clientSocket, (unsigned char*)"", false);
-				}
-				break;
-
-				case Flags::FILE_DELETE:
-				{
-					// quit
 				}
 				break;
 
 				case Flags::CREATE_DIR:
 				{
-					std::string dirname = std::string(packet.data, packet.size - 8);
+					if(info.auth == false)
+						break;
+
+					std::string dirname = packet.DataToStr();
 
 					if(dirname.size() == 0)
 					{
@@ -464,8 +480,9 @@ void* ServerWorker(void* arg)
 						break;
 					}
 
+					XMLElement* dir = info.cwdXML->FirstChildElement("dir");
 					bool found = false;
-					XMLElement* dir = info.currDirXML->FirstChildElement("dir");
+
 					while(dir)
 					{
 						if(dir->FirstChildElement("name")->GetText() == dirname)
@@ -484,7 +501,7 @@ void* ServerWorker(void* arg)
 						break;
 					}
 
-					XMLElement* newdir = info.currDirXML->InsertNewChildElement("dir");
+					XMLElement* newdir = info.cwdXML->InsertNewChildElement("dir");
 					newdir->InsertNewChildElement("name")->SetText(dirname.c_str());
 
 					// FIX: check for being unable to create
@@ -496,30 +513,34 @@ void* ServerWorker(void* arg)
 
 				case Flags::CHANGE_CWD:
 				{
-					std::string dirname(packet.data, packet.size - 8);
+					if(info.auth == false)
+						break;
+
+					std::string dirname = packet.DataToStr();
 
 					if(dirname == "../")
 					{
-						if(info.currDirXML->Parent()->ToElement() != nullptr)
+						if(info.cwdXML->Parent()->ToElement() != nullptr)
 						{
-							info.currDirXML = info.currDirXML->Parent()->ToElement();
+							info.cwdXML = info.cwdXML->Parent()->ToElement();
+
 							Packet response(Flags::SUCCESS, NULL, 0);
 							response.Send(clientSocket);
 							break;
 						}
 
-						Packet response(Flags::FAILURE, "Can't go out of your root!");
+						Packet response(Flags::FAILURE, "You do not have permission");
 						response.Send(clientSocket);
 						break;
 					}
 
-					XMLElement* dir = info.currDirXML->FirstChildElement("dir");
+					XMLElement* dir = info.cwdXML->FirstChildElement("dir");
 
 					while(dir)
 					{
 						if(dir->FirstChildElement("name")->GetText() == dirname)
 						{
-							info.currDirXML = dir;
+							info.cwdXML = dir;
 							break;
 						}
 
@@ -535,7 +556,7 @@ void* ServerWorker(void* arg)
 				{
 					if(info.auth == true && info.userFiles != nullptr)
 					{
-						info.userFiles->SaveFile( (info.userdir + "files.xml").c_str() );
+						info.userFiles->SaveFile( (info.userDir + "files.xml").c_str() );
 						delete info.userFiles;
 						info.userFiles = nullptr;
 					}
@@ -544,42 +565,71 @@ void* ServerWorker(void* arg)
 				}
 				break;
 
+				case Flags::FILE_DELETE:
+				{
+					// TODO:
+				}
+				break;
+
+				case Flags::FILE_RENAME:
+				{
+					// TODO:
+				}
+				break;
+
+				case Flags::FILE_COPY:
+				{
+					// TODO:
+				}
+				break;
+
+				case Flags::FILE_MOVE:
+				{
+					// TODO:
+				}
+				break;
+
 				case Flags::QUIT:
 				{
-					goto killclient;
+					goto killClient;
 				}
 				break;
 			}
 
 			continue;
 
-			killclient:
-			printf(WARN "Client %d disconnected.\n\n" CLEAR, clientSocket);
+			killClient:
+			printf(WARN "\nClient %d disconnected.\n\n" CLEAR, clientSocket);
+
+			pthread_mutex_lock(&glb.miscMut);
+			glb.clientCount--;
+			pthread_mutex_unlock(&glb.miscMut);
+			clientsOnThisThread--;
+
 			if(info.userFiles != nullptr)
 			{
-				info.userFiles->SaveFile( (info.userdir + "files.xml").c_str() );
+				info.userFiles->SaveFile( (info.userDir + "files.xml").c_str() );
+				delete info.userFiles;
 			}
+			// clientsInfo.erase(clientSocket);
+
 			FD_CLR(clientSocket, &actfds);
 			close(clientSocket);
-			// pthread_mutex_lock(&glb.mut);
-			glb.clientCount -= 1;
-			// pthread_mutex_unlock(&glb.mut);
-			delete info.userFiles;
-			clientsOnThisThread--;
 		}
 
-		std::cout << "Thread " << threadinfo.id << ": poll!" << x++ << "\n";
-
-		if(x > 10000)
-			goto threadDead;
+		// std::cout << "Thread " << threadInfo.id << " working..." << "\n";
 	}
 
 	return NULL;
 
 	threadDead:
+	printf(ERR "Thread %d died!\n" CLEAR, threadInfo.id);
+
+	pthread_mutex_lock(&glb.miscMut);
 	glb.clientCount -= clientsInfo.size();
+	pthread_mutex_unlock(&glb.miscMut);
+
+	threadInfo.alive = false;
 	free(arg);
-	threadinfo.alive = false;
-	printf(ERR "Thread %d died!\n" CLEAR, threadinfo.id);
 	return NULL;
 }

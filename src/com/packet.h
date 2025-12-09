@@ -29,6 +29,8 @@ enum Flags
 	FILE_MOVE
 };
 
+std::string FlagToStr(Flags flag);
+
 class Packet
 {
 	public:
@@ -49,6 +51,9 @@ class Packet
 
 
 // encryption funcs
+#define CHUNK_SIZE 4096
+#define DISABLE_CRYPTO false
+
 void RandomBytes(void* buff, int sz);
 
 std::string Encrypt(const char* data, int sz, unsigned char key[32]);

@@ -14,6 +14,38 @@
 #include <sodium.h>
 #include <openssl/evp.h>
 
+
+std::string FlagToStr(Flags flag)
+{
+	switch(flag)
+	{
+		case SUCCESS:           return "SUCCESS";
+		case FAILURE:           return "FAILURE";
+
+		case QUIT:              return "QUIT";
+		case KEY_EXCHANGE:      return "KEY_EXCHANGE";
+		case LOGIN_REQUEST:     return "LOGIN_REQUEST";
+		case REGISTER_REQUEST:  return "REGISTER_REQUEST";
+		case LOGOUT:            return "LOGOUT";
+
+		case SEND_FILE_BEGIN:   return "SEND_FILE_BEGIN";
+		case SEND_FILE_CHUNK:   return "SEND_FILE_CHUNK";
+		case SEND_FILE_END:     return "SEND_FILE_END";
+		case SEND_FILE_REQUEST: return "SEND_FILE_REQUEST";
+
+		case DIR_LIST_REQUEST:  return "DIR_LIST_REQUEST";
+		case CHANGE_CWD:        return "CHANGE_CWD";
+		case CREATE_DIR:        return "CREATE_DIR";
+
+		case FILE_DELETE:       return "FILE_DELETE";
+		case FILE_RENAME:       return "FILE_RENAME";
+		case FILE_COPY:         return "FILE_COPY";
+		case FILE_MOVE:         return "FILE_MOVE";
+	    default: return "UNKNOWN_FLAG";
+	}
+}
+
+
 Packet::Packet()
 {
 	data = nullptr;
@@ -201,9 +233,6 @@ std::string Decrypt(const char* data, int sz, unsigned char key[32])
 
 
 /////////////// FILE TRANSMISSION FUNCS ///////////////
-#define CHUNK_SIZE 512
-#define DISABLE_CRYPTO false
-
 void SendFile(const char* filepath, int socket, unsigned char key[32], bool encrypt)
 {
 	printf(WARN "\n=============== File '%s' send started. ===============\n" CLEAR, filepath);

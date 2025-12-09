@@ -74,21 +74,21 @@ void Connect()
 
 
 	// key exchange
-	unsigned char private_key[32];
-	unsigned char public_key[32];
+	unsigned char privateKey[32];
+	unsigned char publicKey[32];
 
-	RandomBytes(private_key, 32);
+	RandomBytes(privateKey, 32);
 
-	crypto_scalarmult_curve25519_base(public_key, private_key);
+	crypto_scalarmult_curve25519_base(publicKey, privateKey);
 
-	Packet packet(Flags::KEY_EXCHANGE, (char*)public_key, 32);
+	Packet packet(Flags::KEY_EXCHANGE, (char*)publicKey, 32);
 	packet.Send(glb.serverSocket);
 	packet.Recv(glb.serverSocket);
 
-	unsigned char peer_public_key[32];
-	memcpy((char*)peer_public_key, packet.data, 32);
+	unsigned char peerPublicKey[32];
+	memcpy((char*)peerPublicKey, packet.data, 32);
 
-	if(crypto_scalarmult_curve25519(glb.secretKey, private_key, peer_public_key))
+	if(crypto_scalarmult_curve25519(glb.secretKey, privateKey, peerPublicKey))
 	{
 		printf(ERR "Key exchange failed!\n" CLEAR);
 		glb.errorMsg = std::string("Key exchange failed");
@@ -104,9 +104,9 @@ void Connect()
 	// FIX: check key worked with predefined msg
 
 	printf(OK "Key exchange finished successfully.\n" CLEAR);
-	std::cout << "private key: "; HexDump((char*)private_key, 32);
-	std::cout << " public key: "; HexDump((char*)public_key, 32);
-	std::cout << "   peer key: "; HexDump((char*)peer_public_key, 32);
+	std::cout << "private key: "; HexDump((char*)privateKey, 32);
+	std::cout << " public key: "; HexDump((char*)publicKey, 32);
+	std::cout << "   peer key: "; HexDump((char*)peerPublicKey, 32);
 	std::cout << " secret key: "; HexDump((char*)glb.secretKey, 32);
 	std::cout << '\n';
 }

@@ -44,7 +44,7 @@ launch() {
 launch "ninja -C build" "1"
 ret=$?
 
-serverArgs="0.0.0.0   4023"
+serverArgs="--port 4023"
 clientArgs="--ip 127.0.0.1 --port 4023 --username johnsmith --password 1234"
 # clientArgs="--ip 10.100.0.30 --port 4023 --username johnsmith --password 1234"
 

@@ -8,11 +8,8 @@
 
 struct ThreadInfo
 {
-	// pthread_t thread;
 	bool alive;
-
 	int id;
-	// int clientSocket;
 };
 
 void* ServerWorker(void* arg);
