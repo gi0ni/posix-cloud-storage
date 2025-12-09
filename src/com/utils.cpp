@@ -13,6 +13,7 @@ void PrintErr(const char* msg)
 // #include <algorithm>
 #include <dirent.h>
 // #include <filesystem>
+#include <sstream>
 
 #include <iostream>
 #include <iomanip>

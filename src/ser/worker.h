@@ -4,7 +4,7 @@
 #include <pthread.h>
 
 #define MAX_THREADS 2
-#define MAX_CLIENTS_PER_THREAD 1
+#define MAX_CLIENTS_PER_THREAD 2
 
 struct ThreadInfo
 {

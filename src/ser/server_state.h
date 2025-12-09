@@ -1,7 +1,6 @@
 #ifndef SERVER_STATE_H
 #define SERVER_STATE_H
 
-#include <imgui.h>
 #include <vector>
 #include <string>
 

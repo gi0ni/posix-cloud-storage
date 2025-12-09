@@ -10,6 +10,7 @@
 
 #include <stdlib.h>
 #include <cstring>
+#include <cassert>
 
 #include <iostream>
 #include <fstream>
@@ -37,7 +38,7 @@ struct ClientInfo
 	std::string userdir;
 	std::string filename;
 	std::string filenameenc;
-	std::ofstream fout;
+	int fd;
 	int currfilesize;
 
 	XMLDocument* userFiles = nullptr;
@@ -66,6 +67,7 @@ void* ServerWorker(void* arg)
 	nfds = glb.listenSocket;
 
 	int x = 0;
+	int clientsOnThisThread = 0;
 
 	while(true)
 	{
@@ -81,7 +83,7 @@ void* ServerWorker(void* arg)
 			goto threadDead;
 		}
 
-		if(FD_ISSET(glb.listenSocket, &readfds) && pthread_mutex_trylock(&glb.listenSocketMut) == 0)
+		if(FD_ISSET(glb.listenSocket, &readfds) && clientsOnThisThread < MAX_CLIENTS_PER_THREAD && pthread_mutex_trylock(&glb.listenSocketMut) == 0)
 		{
 			int clientSocket;
 			sockaddr_in clientAddr;
@@ -99,12 +101,13 @@ void* ServerWorker(void* arg)
 				printf(OK "Thread %d: " CLEAR, threadinfo.id);
 				printf(WARN "\nClient %d connected from %s:%d.\n" CLEAR, clientSocket, inet_ntoa({clientAddr.sin_addr.s_addr}), clientAddr.sin_port);
 
-				clientsInfo[clientSocket] = ClientInfo();
+				clientsInfo.emplace(clientSocket, ClientInfo());
 
 				nfds = std::max(nfds, clientSocket);
 				FD_SET(clientSocket, &actfds);
 
 				glb.clientCount++;
+				clientsOnThisThread++;
 				glb.serverTimeout = 120;
 			}
 
@@ -261,7 +264,7 @@ void* ServerWorker(void* arg)
 					std::cout << "received: " << packet.size - 8 << '\n';
 					std::cout << packet.data << '\n';
 
-					std::string data = Decrypt(packet.data, packet.size - 8, info.secret_key);
+					std::string data = DecryptSSL(packet.data, packet.size - 8, info.secret_key);
 
 					std::stringstream stream;
 					stream << data;
@@ -344,14 +347,14 @@ void* ServerWorker(void* arg)
 					stream >> info.currfilesize;
 
 					std::cout << "preparing to write " << info.userdir + info.filename << '\n';
-					info.fout.open(info.userdir + info.filename);
+					info.fd = open( (info.userdir + info.filename).c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600 );
 				}
 				break;
 
 				case Flags::FILE_CHUNK:
 				{
 					std::cout << "FILE CHUNK SIZE: " << packet.size - 8 << '\n';
-					info.fout.write(packet.data, packet.size - 8);
+					write(info.fd, packet.data, packet.size - 8);
 					Packet response(Flags::ACCEPT, NULL, 0);
 					response.Send(clientSocket);
 				}
@@ -374,7 +377,7 @@ void* ServerWorker(void* arg)
 					file->InsertNewChildElement("birth")->SetText(time(NULL));
 
 					std::cout << "FILE TRANSFER COMPLETE!\n";
-					info.fout.close(); // WARN: do i have to manually add '\n' at end..?
+					close(info.fd); // WARN: do i have to manually add '\n' at end..?
 				}
 				break;
 
@@ -542,9 +545,13 @@ void* ServerWorker(void* arg)
 			glb.clientCount -= 1;
 			// pthread_mutex_unlock(&glb.mut);
 			delete info.userFiles;
+			clientsOnThisThread--;
 		}
 
 		std::cout << "Thread " << threadinfo.id << ": poll!" << x++ << "\n";
+
+		if(x > 10000)
+			goto threadDead;
 	}
 
 	return NULL;

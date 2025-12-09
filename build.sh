@@ -46,13 +46,14 @@ ret=$?
 
 serverArgs="0.0.0.0   4023"
 clientArgs="127.0.0.1 4023 johnsmith 1234"
+# clientArgs="10.100.0.30 4023 johnsmith 1234"
 
 if [ $ret -eq 0 ]; then
 
-	ps aux | grep -P " ./bin/server " | grep -v "grep"
-	if [ $? -ne 0 ]; then
-		launch "./bin/server $serverArgs" "0"
-	fi
+	# ps aux | grep -P " ./bin/server " | grep -v "grep"
+	# if [ $? -ne 0 ]; then
+	# 	launch "./bin/server $serverArgs" "0"
+	# fi
 
 	sleep 0.100
 	launch "./bin/client $clientArgs" "0"

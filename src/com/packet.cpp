@@ -210,6 +210,9 @@ std::string Decrypt(const char* data, int sz, unsigned char key[32])
 	return output;
 }
 
+#define CHUNK_SIZE 512
+#define DISABLE_CRYPTO 0
+
 void SendFile(const char* filepath, int socket, unsigned char key[32], bool encrypt)
 // think of encrypt as - is the file already encrypted?
 {
@@ -233,7 +236,7 @@ void SendFile(const char* filepath, int socket, unsigned char key[32], bool encr
 	Packet packet(Flags::SEND_FILE_BEGIN, &data[0], data.size());
 	packet.Send(socket);
 
-	packet.data = (char*)realloc(packet.data, 4096 + 12 + 16);
+	packet.data = (char*)realloc(packet.data, CHUNK_SIZE + 12 + 16);
 
 	Packet response;
 
@@ -248,9 +251,9 @@ void SendFile(const char* filepath, int socket, unsigned char key[32], bool encr
 
 		int bytes;
 
-		if(encrypt)
+		if(encrypt && !DISABLE_CRYPTO)
 		{
-			bytes = read(fd, packet.data, 4096);
+			bytes = read(fd, packet.data, CHUNK_SIZE);
 
 			std::string encryptedData = Encrypt(packet.data, bytes, key);
 			memcpy(packet.data, &encryptedData[0], encryptedData.size());
@@ -261,7 +264,7 @@ void SendFile(const char* filepath, int socket, unsigned char key[32], bool encr
 		{
 			// this assumes the file was already encrypred. the function is not that clear with enc = false. not ideal
 			packet.flag = Flags::FILE_CHUNK;
-			bytes = read(fd, packet.data, 4096 + 12 + 16);
+			bytes = read(fd, packet.data, CHUNK_SIZE + 12 + 16);
 			packet.size = bytes + 8;
 		}
 
@@ -313,7 +316,7 @@ void RecvFile(const char* filepath, int socket, unsigned char key[32], bool decr
 
 		std::string chunk;
 
-		if(decrypt)
+		if(decrypt && !DISABLE_CRYPTO)
 		{
 			chunk = Decrypt(packet.data, packet.size - 8, key);
 		}

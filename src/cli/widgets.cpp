@@ -62,7 +62,7 @@ void AuthMenu()
 		{
 			glb.error = true;
 			glb.errormsg = "Lost connection";
-			glb.connected = false;
+			// glb.connected = false; WRONG
 			ImGui::End();
 			return;
 		}
