@@ -61,8 +61,6 @@ void Packet::Recv(int fd)
 	if(read(fd, &size, 4) <= 0)
 		throw std::runtime_error(std::string(strerror(errno)));
 
-	std::cout << "THE SIZE IS: " << size << '\n';
-
 	if(read(fd, &flag, 4) <= 0)
 		throw std::runtime_error(std::string(strerror(errno)));
 
@@ -76,11 +74,11 @@ void Packet::Recv(int fd)
 
 void Packet::Send(int fd)
 {
-	if(write(fd, this, 8) < 0)
+	if(write(fd, this, 8) <= 0)
 		throw std::runtime_error(std::string(strerror(errno)));
 	
 	if(size > 8)
-		if(write(fd, data, size - 8) < 0)
+		if(write(fd, data, size - 8) <= 0)
 			throw std::runtime_error(std::string(strerror(errno)));
 }
 
@@ -102,9 +100,7 @@ std::string Encrypt(const char* data, int sz, unsigned char key[32])
 	unsigned long long int clen;
 	unsigned char nonce[12];
 
-	int fd = open("/dev/random", O_RDONLY);
-	read(fd, nonce, 12);
-	close(fd);
+	RandomBytes(nonce, 12);
 
 	crypto_aead_aes256gcm_encrypt(
 			(unsigned char*)&output[0],
@@ -120,10 +116,11 @@ std::string Encrypt(const char* data, int sz, unsigned char key[32])
 
 	std::string final_output = std::string((char*)nonce, 12) + output;
 
-	std::cout << "AES MESSAGE:\n";
-	std::cout << "nonce     : "; HexDump(std::string(&final_output[0], 12));
+	std::cout << WARN "Sending encrypted message:\n" CLEAR;
+	std::cout << "     nonce: "; HexDump(std::string(&final_output[0], 12));
 	std::cout << "cyphertext: "; HexDump(std::string(&final_output[12], final_output.size() - 12 - 16));
-	std::cout << "MAC       : "; HexDump(std::string(&final_output[final_output.size() - 16], 16));
+	std::cout << "       MAC: "; HexDump(std::string(&final_output[final_output.size() - 16], 16));
+	std::cout << '\n';
 
 	// return (char*)nonce + output; OMFG
 	return final_output;
@@ -135,7 +132,7 @@ std::string DecryptSSL(const char* data, int sz, unsigned char key[32])
 	int outlen;
 
 	unsigned char nonce[12]; memcpy((char*)nonce, data, 12);
-	std::string cyphertext = std::string(data).substr(12, sz - 12 - 16);
+	std::string cyphertext = std::string(data, sz).substr(12, sz - 12 - 16);
 	std::string tag = std::string(data + sz - 16, 16);
 
 	// int err = crypto_aead_aes256gcm_decrypt(

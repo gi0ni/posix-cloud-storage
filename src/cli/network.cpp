@@ -21,6 +21,7 @@
 
 #include <sodium.h>
 
+
 void SigInt_Handler(int sig)
 {
 	Packet packet(Flags::QUIT, NULL, 0);
@@ -35,6 +36,7 @@ void SigPipe_Handler(int sig)
 {
 	printf(ERR "Received signal SIGPIPE!\n" CLEAR);
 }
+
 
 void Connect()
 {
@@ -59,8 +61,8 @@ void Connect()
 	if(connect(glb.serverSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)))
 	{
 		PrintErr("connect");
-		glb.error = true;
 		glb.errormsg = std::string(strerror(errno));
+		glb.error = true;
 		return;
 	}
 	else
@@ -106,6 +108,7 @@ void Connect()
 	std::cout << " public key: "; HexDump((char*)public_key, 32);
 	std::cout << "   peer key: "; HexDump((char*)peer_public_key, 32);
 	std::cout << " secret key: "; HexDump((char*)glb.secret_key, 32);
+	std::cout << '\n';
 }
 
 
@@ -113,17 +116,12 @@ void Connect()
 void SendAuthReq(Flags flag)
 {
 	std::string data = std::string(glb.username) + '\n' + glb.password + '\n';
-	std::cout << "expect enc msg len: " << data.size() + 12 + 16 << '\n';
 	std::string encrypted_data = Encrypt(data.c_str(), data.size(), glb.secret_key);
+
 	assert(encrypted_data.size() == data.size() + 12 + 16);
 
-	std::cout << "OK LETS CHECK AGAIN WHAT WE ARE SENDING TO SERVER:\n";
-	std::cout << "AES MESSAGE:\n";
-	std::cout << "nonce     : "; HexDump(std::string(&encrypted_data[0], 12));
-	std::cout << "cyphertext: "; HexDump(std::string(&encrypted_data[12], encrypted_data.size() - 12 - 16));
-	std::cout << "MAC       : "; HexDump(std::string(&encrypted_data[encrypted_data.size() - 16], 16));
-
 	Packet packet(flag, &encrypted_data[0], encrypted_data.size());
+
 	try
 	{
 		packet.Send(glb.serverSocket);
@@ -136,18 +134,15 @@ void SendAuthReq(Flags flag)
 
 	if(packet.flag == Flags::FAILURE)
 	{
-		printf(ERR "AUTH FAIL\n" CLEAR);
-		glb.error = true;
+		printf(ERR "Failed to get authenticated!\n" CLEAR);
 		glb.errormsg = packet.DataToStr();
+		glb.error = true;
 		return;
 	}
 
 	memcpy(glb.salt_e, packet.data, 32);
-	HexDump((char*)glb.salt_e, 32);
 
-	printf(OK "AUTH SUCCESS\n" CLEAR);
-
-	int err = crypto_pwhash_argon2id( // FIX:
+	int err = crypto_pwhash_argon2id(
 			glb.fileKey,
 			32,
 			glb.password,
@@ -158,13 +153,20 @@ void SendAuthReq(Flags flag)
 			crypto_pwhash_argon2id_ALG_ARGON2ID13
 	);
 
-	std::cout << "FILE KEY: ";
-	HexDump((char*)glb.fileKey, 32);
+	if(err)
+	{
+		printf(ERR "Failed to get authenticated!\n" CLEAR);
+		glb.errormsg = packet.DataToStr();
+		glb.error = true;
+		return;
+	}
 
 	UpdateDirListContents();
 
-	glb.error = false;
+	printf(OK "Authenticated successfully.\n" CLEAR);
+	std::cout << "file key: "; HexDump((char*)glb.fileKey, 32);
 	glb.auth = true;
+	glb.error = false;
 	return;
 }
 
