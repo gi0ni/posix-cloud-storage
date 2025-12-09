@@ -31,6 +31,19 @@ void HexDump(const char* data, int sz)
 	std::cout.copyfmt(init);
 }
 
+void HexDump(const std::string& data)
+{
+	std::ios init(NULL);
+	init.copyfmt(std::cout);
+
+	std::cout << std::hex << std::setw(2) << std::setfill('0');
+	for(int i = 0; i < data.size(); i++)
+		std::cout << (int)(unsigned char)(data[i]);
+	std::cout << '\n';
+
+	std::cout.copyfmt(init);
+}
+
 
 std::string ToHexString(const char* data, int sz)
 {

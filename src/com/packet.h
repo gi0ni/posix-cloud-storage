@@ -38,7 +38,7 @@ class Packet
 
 	Packet();
 	Packet(Flags flag, const char* data, int sz);
-	Packet(Flags flag, std::string msg);
+	Packet(Flags flag, const std::string& msg);
 	~Packet();
 	void Recv(int fd);
 	void Send(int fd);
