@@ -201,3 +201,38 @@ void FileViewMenu()
 	ImGui::EndListBox();
 	ImGui::End();
 }
+
+
+void ContextMenu()
+{
+	if(glb.auth == false)
+		return;
+
+	ImGui::Begin("Context Menu");
+
+	if(ImGui::Button("DELETE"))
+	{
+		Packet packet(Flags::FILE_DELETE, NULL, 0);
+		packet.Send(glb.serverSocket);
+	}
+
+	if(ImGui::Button("RENAME"))
+	{
+		Packet packet(Flags::FILE_RENAME, NULL, 0);
+		packet.Send(glb.serverSocket);
+	}
+
+	if(ImGui::Button("COPY"))
+	{
+		Packet packet(Flags::FILE_COPY, NULL, 0);
+		packet.Send(glb.serverSocket);
+	}
+
+	if(ImGui::Button("MOVE"))
+	{
+		Packet packet(Flags::FILE_MOVE, NULL, 0);
+		packet.Send(glb.serverSocket);
+	}
+
+	ImGui::End();
+}

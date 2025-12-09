@@ -4,5 +4,6 @@
 void ConnectMenu();
 void FileViewMenu();
 void AuthMenu();
+void ContextMenu();
 
 #endif
