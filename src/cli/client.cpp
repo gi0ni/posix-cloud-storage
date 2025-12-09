@@ -71,8 +71,14 @@ int main(int argc, char** argv)
 		}
 		catch(std::exception& e)
 		{
-			printf(ERR "Unhadled exception caught in main!\n" CLEAR);
+			printf(ERR "Unhandled exception caught in main!\n" CLEAR);
 			printf(ERR "what: %s\n" CLEAR, e.what());
+
+			glb.error = true;
+			glb.errorMsg = "Lost connection";
+			glb.auth = false;
+			glb.connected = false;
+			close(glb.serverSocket);
 			break;
 		}
 

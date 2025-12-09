@@ -92,7 +92,8 @@ void* ServerWorker(void* arg)
 				printf(WARN "\nThread %d: Client %d connected from %s:%d.\n" CLEAR, threadInfo.id,
 						clientSocket, inet_ntoa({clientAddr.sin_addr.s_addr}), clientAddr.sin_port);
 
-				clientsInfo.emplace(clientSocket, ClientInfo());
+				// clientsInfo.emplace(clientSocket, ClientInfo());
+				clientsInfo[clientSocket] = ClientInfo();
 
 				assert(clientsInfo[clientSocket].userFilesXML == nullptr);
 
@@ -615,6 +616,9 @@ void* ServerWorker(void* arg)
 				delete info.userFilesXML;
 			}
 			// clientsInfo.erase(clientSocket);
+
+			// if(info.fileOpen == true)
+			// 	close(info.fd);
 
 			FD_CLR(clientSocket, &actfds);
 			close(clientSocket);

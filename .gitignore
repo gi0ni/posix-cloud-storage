@@ -3,3 +3,4 @@ bin
 users.xml
 users.xml
 usr
+.cache/clangd/index
