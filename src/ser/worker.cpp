@@ -41,7 +41,7 @@ struct ClientInfo
 	int chunkCount = 0;
 	int writeFileSz = 0;
 
-	XMLDocument* userFiles = nullptr;
+	XMLDocument* userFilesXML = nullptr;
 	XMLElement* cwdXML = nullptr;
 };
 
@@ -93,6 +93,8 @@ void* ServerWorker(void* arg)
 						clientSocket, inet_ntoa({clientAddr.sin_addr.s_addr}), clientAddr.sin_port);
 
 				clientsInfo.emplace(clientSocket, ClientInfo());
+
+				assert(clientsInfo[clientSocket].userFilesXML == nullptr);
 
 				nfds = std::max(nfds, clientSocket);
 				FD_SET(clientSocket, &actfds);
@@ -235,12 +237,12 @@ void* ServerWorker(void* arg)
 							goto killClient;
 						}
 
-						info.userFiles = new XMLDocument();
-						XMLElement* root = info.userFiles->NewElement("files");
-						info.userFiles->InsertEndChild(root);
-						info.userFiles->SaveFile((info.userDir + "files.xml").c_str());
+						info.userFilesXML = new XMLDocument();
+						XMLElement* root = info.userFilesXML->NewElement("files");
+						info.userFilesXML->InsertEndChild(root);
+						info.userFilesXML->SaveFile((info.userDir + "files.xml").c_str());
 
-						info.cwdXML = info.userFiles->FirstChildElement("files");
+						info.cwdXML = info.userFilesXML->FirstChildElement("files");
 						assert(info.cwdXML != nullptr);
 
 						Packet response(Flags::SUCCESS, (char*)salt_e, 32);
@@ -312,14 +314,14 @@ void* ServerWorker(void* arg)
 
 							info.userDir = ("usr/" + username + "/");
 
-							info.userFiles = new XMLDocument();
-							info.userFiles->LoadFile( (info.userDir + "files.xml").c_str() );
+							info.userFilesXML = new XMLDocument();
+							info.userFilesXML->LoadFile( (info.userDir + "files.xml").c_str() );
 
-							info.cwdXML = info.userFiles->RootElement();
+							info.cwdXML = info.userFilesXML->RootElement();
 							if(info.cwdXML == nullptr)
 							{
-								info.cwdXML = info.userFiles->NewElement("files");
-								info.userFiles->InsertEndChild(info.cwdXML);
+								info.cwdXML = info.userFilesXML->NewElement("files");
+								info.userFilesXML->InsertEndChild(info.cwdXML);
 							}
 
 							assert(info.cwdXML != nullptr);
@@ -376,6 +378,7 @@ void* ServerWorker(void* arg)
 					XMLElement* file;
 					bool found = false;
 
+					assert(info.cwdXML != nullptr);
 					file = info.cwdXML->FirstChildElement("file");
 
 					while(file)
@@ -391,7 +394,7 @@ void* ServerWorker(void* arg)
 
 					if(found == false)
 					{
-						info.cwdXML->InsertNewChildElement("file");
+						file = info.cwdXML->InsertNewChildElement("file");
 						file->InsertNewChildElement("name")->SetText(info.currentFilename.c_str());
 						file->InsertNewChildElement("size")->SetText(info.currentFileSz);
 						file->InsertNewChildElement("birth")->SetText(time(NULL));
@@ -554,11 +557,11 @@ void* ServerWorker(void* arg)
 
 				case Flags::LOGOUT:
 				{
-					if(info.auth == true && info.userFiles != nullptr)
+					if(info.userFilesXML != nullptr)
 					{
-						info.userFiles->SaveFile( (info.userDir + "files.xml").c_str() );
-						delete info.userFiles;
-						info.userFiles = nullptr;
+						info.userFilesXML->SaveFile( (info.userDir + "files.xml").c_str() );
+						delete info.userFilesXML;
+						info.userFilesXML = nullptr;
 					}
 
 					info.auth = false;
@@ -606,10 +609,10 @@ void* ServerWorker(void* arg)
 			pthread_mutex_unlock(&glb.miscMut);
 			clientsOnThisThread--;
 
-			if(info.userFiles != nullptr)
+			if(info.userFilesXML != nullptr)
 			{
-				info.userFiles->SaveFile( (info.userDir + "files.xml").c_str() );
-				delete info.userFiles;
+				info.userFilesXML->SaveFile( (info.userDir + "files.xml").c_str() );
+				delete info.userFilesXML;
 			}
 			// clientsInfo.erase(clientSocket);
 
