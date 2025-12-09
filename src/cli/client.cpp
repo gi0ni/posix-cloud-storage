@@ -1,40 +1,23 @@
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-
 #include <unistd.h>
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
-#include <iostream>
 
 #include "utils.h"
-#include "packet.h"
 #include "client_state.h"
 #include "widgets.h"
 #include "network.h"
-
-#include "sodium/core.h"
 
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
 #include <imgui_impl_sdlrenderer2.h>
 #include <SDL2/SDL.h>
 
-// TODO: console window with imgui. would be a pain tho
-// listbox with textinput and its totally doable
-// can't print anymore need to redirect here
-
-// FIX: used non docking imgui accidentally. actually i might have mixed them
+void ParseArgs(int argc, char** argv);
 
 int main(int argc, char** argv)
 {
-	// FIX: parse args properly
-	strcpy(glb.ip, argv[1]);
-	strcpy(glb.port, argv[2]);
-	strcpy(glb.username, argv[3]);
-	strcpy(glb.password, argv[4]);
-	///////////////////////////////////////////
+	ParseArgs(argc, argv);
 
 	SDL_Init(SDL_INIT_VIDEO);
 	SDL_Window* window = SDL_CreateWindow("Client", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1152, 648, SDL_WINDOW_RESIZABLE);
@@ -45,17 +28,10 @@ int main(int argc, char** argv)
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO();
 	glb.mainFont = io.Fonts->AddFontFromFileTTF("./res/fonts/NotoSansNerdFontPropo-Regular.ttf", 20);
-	// glb.mainFont = io.Fonts->AddFontFromFileTTF("./res/fonts/JetBrainsMonoNerdFontMono-Regular.ttf", 20);
 	IM_ASSERT(glb.mainFont != NULL);
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 	ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
 	ImGui_ImplSDLRenderer2_Init(renderer);
-
-	int frame = 0;
-	// std::cout << "" << '\n';
-
-	glb.cwd = "/";
-	// glb.dirContents = Crawl(glb.cwd);
 
 	while(glb.windowShouldClose == false)
 	{
@@ -74,19 +50,7 @@ int main(int argc, char** argv)
 				break;
 
 				case SDL_DROPFILE:
-				{
-					std::cout << event.drop.file << '\n';
-
-					if(glb.auth == true)
-					{
-						SendFile(event.drop.file, glb.serverSocket, glb.fileKey); // FIX: check if file exists before sending message begin to server
-						UpdateDirListContents();
-					}
-					else
-					{
-						// FIX:
-					}
-				}
+					HandleDropFile(event.drop.file);
 				break;
 			}
 
@@ -99,10 +63,18 @@ int main(int argc, char** argv)
 
 		ImGui::PushFont(glb.mainFont);
 
-		// FIX: throw exception when server does not respond and catch it here
-		ConnectMenu(); // FIX: needs to let you try again. not just crash the entire app
-		AuthMenu();
-		FileViewMenu();
+		try
+		{
+			ConnectMenu();
+			AuthMenu();
+			FileViewMenu();
+		}
+		catch(std::exception& e)
+		{
+			printf(ERR "Unhadled exception caught in main!\n" CLEAR);
+			printf(ERR "what: %s\n" CLEAR, e.what());
+			break;
+		}
 
 		ImGui::PopFont();
 
@@ -121,9 +93,66 @@ int main(int argc, char** argv)
 		close(glb.serverSocket);
 	}
 
-	// FIX: CLEAR IMGUI 
+	ImGui_ImplSDLRenderer2_Shutdown();
+	ImGui_ImplSDL2_Shutdown();
+	ImGui::DestroyContext();
 
+	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
 	SDL_Quit();
 	return 0;
+}
+
+void ParseArgs(int argc, char** argv)
+{
+	bool malformedArgs = false;
+	int i;
+
+	for(i = 1; i < argc; i++)
+	{
+		if(strcmp(argv[i], "--ip") == 0)
+		{
+			if(i + 1 < argc && strlen(argv[i + 1]) < 64)
+			{
+				strcpy(glb.addr, argv[++i]);
+			}
+		}
+
+		else if(strcmp(argv[i], "--port") == 0)
+		{
+			if(i + 1 < argc && strlen(argv[i + 1]) < 64)
+			{
+				strcpy(glb.port, argv[++i]);
+			}
+		}
+
+		else if(strcmp(argv[i], "--username") == 0)
+		{
+			if(i + 1 < argc && strlen(argv[i + 1]) < 64)
+			{
+				strcpy(glb.username, argv[++i]);
+			}
+		}
+
+		else if(strcmp(argv[i], "--password") == 0)
+		{
+			if(i + 1 < argc && strlen(argv[i + 1]) < 64)
+			{
+				strcpy(glb.password, argv[++i]);
+			}
+		}
+
+		else
+		{
+			malformedArgs = true;
+			break;
+		}
+	}
+
+	if(malformedArgs == true)
+	{
+		printf(ERR "Malformed arguments. Received unexpected argument '%s'!\n" CLEAR, argv[i]);
+		printf(ERR "Recognized options are as follows:\n* --ip <address>\n* --port <number>\n* --username <user>\n* --password <pass>\n" CLEAR);
+		exit(1);
+	}
 }

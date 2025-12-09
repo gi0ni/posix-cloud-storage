@@ -12,6 +12,9 @@
 #define OK "\e[32m[OK] "
 
 void PrintErr(const char* msg);
+
+void RandomBytes(void* buff, int sz);
+
 std::vector<std::string> Crawl(std::string dirname);
 void HexDump(const char* data, int sz);
 void HexDump(const std::string& data);

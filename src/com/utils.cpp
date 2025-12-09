@@ -1,12 +1,4 @@
 #include "utils.h"
-
-void PrintErr(const char* msg)
-{
-	fprintf(stderr, ERR);
-	perror(msg);
-	fprintf(stderr, CLEAR);
-}
-
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -17,6 +9,20 @@ void PrintErr(const char* msg)
 
 #include <iostream>
 #include <iomanip>
+
+void PrintErr(const char* msg)
+{
+	fprintf(stderr, ERR);
+	perror(msg);
+	fprintf(stderr, CLEAR);
+}
+
+void RandomBytes(void* buff, int sz)
+{
+	int fd = open("/dev/random", O_RDONLY);
+	read(fd, buff, sz);
+	close(fd);
+}
 
 // namespace fs = std::filesystem;
 //

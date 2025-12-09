@@ -1,26 +1,25 @@
 #include "network.h"
 
+#include <unistd.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <sys/stat.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+
 #include "client_state.h"
 #include "utils.h"
 #include "packet.h"
 
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <signal.h>
-#include <arpa/inet.h>
-
-#include <sodium.h>
-
-#include <stdlib.h>
-
+#include <cstdlib>
 #include <iostream>
 #include <vector>
 #include <string>
 #include <sstream>
 #include <algorithm>
+
+#include <sodium.h>
 
 void SigInt_Handler(int sig)
 {
@@ -34,11 +33,12 @@ void SigInt_Handler(int sig)
 
 void SigPipe_Handler(int sig)
 {
-	printf("SIGPIPE\n");
+	printf(ERR "Received signal SIGPIPE!\n" CLEAR);
 }
 
 void Connect()
 {
+	// connect
 	glb.serverSocket = socket(AF_INET, SOCK_STREAM, 0);
 	if(glb.serverSocket < 0)
 	{
@@ -53,12 +53,11 @@ void Connect()
 	memset(&serverAddr, 0, sizeof(serverAddr));
 
 	serverAddr.sin_family = AF_INET;
-	serverAddr.sin_addr.s_addr = inet_addr(glb.ip);
+	serverAddr.sin_addr.s_addr = inet_addr(glb.addr);
 	serverAddr.sin_port = htons((short)atoi(glb.port));
 
 	if(connect(glb.serverSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)))
 	{
-		// TODO: retry connection
 		PrintErr("connect");
 		glb.error = true;
 		glb.errormsg = std::string(strerror(errno));
@@ -71,46 +70,52 @@ void Connect()
 		printf(WARN "Connected to server.\n" CLEAR);
 	}
 
-	// KEY EXCHANGE
+
+	// key exchange
 	unsigned char private_key[32];
 	unsigned char public_key[32];
 
-	int fd = open("/dev/random", O_RDONLY);
-	read(fd, private_key, 32);
-	close(fd);
+	RandomBytes(private_key, 32);
 
 	crypto_scalarmult_curve25519_base(public_key, private_key);
-	std::cout << "private key: "; HexDump((char*)private_key, 32);
-	std::cout << "public  key: "; HexDump((char*)public_key,  32);
 
 	Packet packet(Flags::KEY_EXCHANGE, (char*)public_key, 32);
 	packet.Send(glb.serverSocket);
 	packet.Recv(glb.serverSocket);
 
-	if(packet.flag == Flags::KEY_EXCHANGE)
+	unsigned char peer_public_key[32];
+	memcpy((char*)peer_public_key, packet.data, 32);
+
+	if(crypto_scalarmult_curve25519(glb.secret_key, private_key, peer_public_key))
 	{
-		unsigned char peer_public_key[32];
-		memcpy((char*)peer_public_key, packet.data, 32);
-		std::cout << "peer   key: "; HexDump((char*)peer_public_key, 32);
-		int err = crypto_scalarmult_curve25519(glb.secret_key, private_key, peer_public_key);
-		// err
-		std::cout << "secret key: "; HexDump((char*)glb.secret_key, 32);
-	}
-	else
-	{
-		// refused
+		printf(ERR "Key exchange failed!\n" CLEAR);
+		glb.errormsg = std::string("Key exchange failed");
+		glb.error = true;
+
+		Packet packet(Flags::QUIT, NULL, 0);
+		packet.Send(glb.serverSocket);
+		close(glb.serverSocket);
+		glb.connected = false;
+		return;
 	}
 
-	// TODO: send a known encrypted message to make sure the key exchange actually worked..?
-	printf(OK "KEY EXCHANGE SUCCESS\n" CLEAR);
+	// FIX: check key worked with predefined msg
+
+	printf(OK "Key exchange finished successfully.\n" CLEAR);
+	std::cout << "private key: "; HexDump((char*)private_key, 32);
+	std::cout << " public key: "; HexDump((char*)public_key, 32);
+	std::cout << "   peer key: "; HexDump((char*)peer_public_key, 32);
+	std::cout << " secret key: "; HexDump((char*)glb.secret_key, 32);
 }
 
-// FIX: crashes sometimes on login
-int SendAuthReq(Flags flag)
+
+// FIX: server crash on login
+void SendAuthReq(Flags flag)
 {
 	std::string data = std::string(glb.username) + '\n' + glb.password + '\n';
 	std::cout << "expect enc msg len: " << data.size() + 12 + 16 << '\n';
 	std::string encrypted_data = Encrypt(data.c_str(), data.size(), glb.secret_key);
+	assert(encrypted_data.size() == data.size() + 12 + 16);
 
 	std::cout << "OK LETS CHECK AGAIN WHAT WE ARE SENDING TO SERVER:\n";
 	std::cout << "AES MESSAGE:\n";
@@ -126,13 +131,15 @@ int SendAuthReq(Flags flag)
 	}
 	catch(std::exception& e)
 	{
-		return -1;
+		throw e;
 	}
 
 	if(packet.flag == Flags::FAILURE)
 	{
 		printf(ERR "AUTH FAIL\n" CLEAR);
-		return -1;
+		glb.error = true;
+		glb.errormsg = packet.DataToStr();
+		return;
 	}
 
 	memcpy(glb.salt_e, packet.data, 32);
@@ -156,7 +163,9 @@ int SendAuthReq(Flags flag)
 
 	UpdateDirListContents();
 
-	return 0;
+	glb.error = false;
+	glb.auth = true;
+	return;
 }
 
 void UpdateDirListContents()
@@ -204,4 +213,26 @@ void UpdateDirListContents()
 	});
 
 	std::cout << "sizeof dircontents: " << glb.dirContents.size() << '\n';
+}
+
+void HandleDropFile(const char* filepath)
+{
+	std::cout << filepath << '\n';
+
+	if(glb.auth == true)
+	{
+		try
+		{
+			SendFile(filepath, glb.serverSocket, glb.fileKey); // FIX: check if file exists before sending message begin to server
+			UpdateDirListContents();
+		}
+		catch(std::exception& e)
+		{
+
+		}
+	}
+	else
+	{
+		// FIX:
+	}
 }

@@ -1,9 +1,9 @@
 #ifndef CLIENT_STATE_H
 #define CLIENT_STATE_H
 
-#include <imgui.h>
 #include <vector>
 #include <string>
+#include <imgui.h>
 
 class State
 {
@@ -24,21 +24,21 @@ class State
 	ImFont* mainFont;
 
 	bool connected = false;
-	char ip[64];
-	char port[64];
+	char addr[64] = "";
+	char port[64] = "";
 
 	unsigned char secret_key[32];
 
 	bool auth = false;
-	char username[64];
-	char password[64];
+	char username[64] = "";
+	char password[64] = "";
 	unsigned char salt_e[32];
 	unsigned char fileKey[32];
 
-	bool error = true;
+	bool error = false;
 	std::string errormsg;
 
-	std::string cwd;
+	std::string cwd = "/";
 	std::vector<std::pair<std::string, bool>> dirContents;
 	char inputDirName[128];
 

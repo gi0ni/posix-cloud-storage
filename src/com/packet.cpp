@@ -93,7 +93,7 @@ std::string Packet::DataToStr()
 {
 	if(size == 0)
 		return "";
-	return std::string(data, size);
+	return std::string(data, size - 8);
 }
 
 std::string Encrypt(const char* data, int sz, unsigned char key[32])
@@ -177,7 +177,7 @@ std::string DecryptSSL(const char* data, int sz, unsigned char key[32])
 	error:
 	EVP_CIPHER_CTX_free(ctx);
 	printf("DECRYPT ERROR OH NO\n");
-	return "nope.";
+	return "decryptErrorThisIsBad";
 }
 
 // FIX: does not work over ssh. use OpenSSL instead.

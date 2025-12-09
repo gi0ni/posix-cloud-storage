@@ -1,98 +1,98 @@
 #include "widgets.h"
 
-#include <imgui.h>
+#include <iostream>
 
 #include "client_state.h"
 #include "network.h"
 #include "utils.h"
 
-#include <iostream>
-#include <filesystem>
+#include <imgui.h>
 
-// TODO: when clicking on file show a simple preview with ImGUI::Text in a new window
 
-namespace fs = std::filesystem;
+// TODO: file preview?
+
 
 void ConnectMenu()
 {
 	if(glb.connected == true)
 		return;
 
-	ImGuiIO& io = ImGui::GetIO();
-
 	ImGui::Begin("Connect");
-	// ImGui::Text("%.1f", io.Framerate);
-
-	if(glb.flag == true)
-	{
-		ImGui::Text("you clicked me!! x%d", glb.counter);
-	}
-
-	ImGui::InputText("IP", glb.ip, 64);
+	ImGui::InputText("ADDR", glb.addr, 64);
 	ImGui::InputText("PORT", glb.port, 64);
 
-	if(!glb.connected && ImGui::Button("Connect"))
-	{
+	if(ImGui::Button("Connect"))
 		Connect();
-	}
 
 	if(glb.error)
-		ImGui::Text("%s", glb.errormsg.c_str());
-
-	if(glb.connected && ImGui::Button("Disconnect"))
 	{
-		glb.windowShouldClose = true;
+		ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 64, 32, 255));
+		ImGui::Text("ERR: %s!", glb.errormsg.c_str());
+		ImGui::PopStyleColor();
 	}
 
 	ImGui::End();
 }
 
+
 void AuthMenu()
 {
-	if(!glb.connected || glb.auth)
+	if(glb.connected == false || glb.auth == true)
 		return;
 
 	ImGui::Begin("Login");
-	ImGui::Text("Hello");
-	ImGui::InputText("Username", glb.username, 64); // FIX: LIMIT CHARACTERS TO ALPHANUMERIC
+	ImGui::InputText("Username", glb.username, 64); // FIX: limit chars to alphanumeric
 	ImGui::InputText("Password", glb.password, 64);
+
 	if(ImGui::Button("Login"))
 	{
-		if(SendAuthReq(Flags::AUTH_REQUEST))
+		try
 		{
-			glb.error = true;
+			SendAuthReq(Flags::AUTH_REQUEST);
+		}
+		catch(std::exception& e)
+		{
 			glb.errormsg = "Lost connection";
-			// glb.connected = false; WRONG
+			glb.error = true;
+			glb.connected = false;
 			ImGui::End();
 			return;
-		}
-		else
-		{
-			glb.error = false;
-			glb.auth = true;
 		}
 	}
 
 	if(ImGui::Button("Register"))
 	{
-		if(SendAuthReq(Flags::REGISTER_REQUEST))
+		try
 		{
-			glb.error = true;
+			SendAuthReq(Flags::REGISTER_REQUEST);
 		}
-		else
+		catch(std::exception& e)
 		{
-			glb.error = false;
-			glb.auth = true;
+			glb.errormsg = "Lost connection";
+			glb.error = true;
+			glb.connected = false;
+			ImGui::End();
+			return;
 		}
 	}
 
-	if(glb.error)
-		ImGui::Text("wrong password");
+	if(ImGui::Button("Disconnect"))
+	{
+		Packet packet(Flags::QUIT, NULL, 0);
+		packet.Send(glb.serverSocket);
+		glb.connected = false;
+	}
 
-	// TODO: register button
+	if(glb.error)
+	{
+		ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 64, 32, 255));
+		ImGui::Text("ERR: %s!", glb.errormsg.c_str());
+		ImGui::PopStyleColor();
+	}
 
 	ImGui::End();
 }
+
 
 void FileViewMenu()
 {
@@ -101,7 +101,19 @@ void FileViewMenu()
 
 	ImGui::Begin("Files");
 
+	if(ImGui::Button("Logout"))
+	{
+		Packet packet(Flags::LOGOUT, NULL, 0);
+		packet.Send(glb.serverSocket);
+		glb.auth = false;
+		ImGui::End();
+		return;
+	}
+
 	ImGui::Text("%s", (glb.cwd).c_str());
+
+	ImGui::InputText("##dirname", glb.inputDirName, 128);
+	ImGui::SameLine();
 	if(ImGui::Button("Create Folder"))
 	{
 		Packet packet(Flags::CREATE_DIR, glb.inputDirName, strlen(glb.inputDirName));
@@ -110,59 +122,52 @@ void FileViewMenu()
 
 		if(packet.flag == Flags::FAILURE)
 		{
-			printf(ERR "%s\n" CLEAR, packet.DataToStr().c_str());
+			printf(ERR "%s!\n" CLEAR, packet.DataToStr().c_str());
 		}
 
 		UpdateDirListContents();
 	}
 
-	if(ImGui::Button("TAKE ME BACK"))
+	if(!ImGui::BeginListBox("##filelist", ImGui::GetContentRegionAvail()))
 	{
-		std::string dir("../");
-		Packet packet(Flags::CHANGE_DIR, dir.data(), dir.size());
+		ImGui::End();
+		return;
+	}
+
+
+	ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 152, 65, 255));
+	if(glb.cwd != "/" && ImGui::Selectable(" ..", false))
+	{
+		Packet packet(Flags::CHANGE_DIR, "../");
 		packet.Send(glb.serverSocket);
 		packet.Recv(glb.serverSocket);
 
 		if(packet.flag == Flags::FAILURE)
 		{
-			printf(ERR "%s\n" CLEAR, packet.DataToStr().c_str());
+			printf(ERR "%s!\n" CLEAR, packet.DataToStr().c_str());
 		}
 
 		UpdateDirListContents();
 
 		int index = glb.cwd.substr(0, glb.cwd.size() - 1).find_last_of("/");
 		glb.cwd = glb.cwd.substr(0, index + 1);
-		if(glb.cwd == "")
-			glb.cwd = "/";
 	}
-
-	ImGui::SameLine();
-
-	ImGui::InputText("##dirname", glb.inputDirName, 128);
-	// FIX: crashes when minimizing window
-	if(!ImGui::BeginListBox("##filelist", ImGui::GetContentRegionAvail())) // FIX: will return error if too small or hidden. need to handle that
-	{
-		ImGui::End();
-		return;
-	}
+	ImGui::PopStyleColor();
 
 	ImDrawList& render = *ImGui::GetWindowDrawList();
 
-	int index = 0;
+	int index = 0 + (glb.cwd != "/");
 	for(auto pair : glb.dirContents)
 	{
 		std::string file = pair.first;
 		bool isDir = pair.second;
 
-		if(isDir)
-			ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 152, 65, 255));
-		// ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(0, 0, 0, 255));
+		if(isDir) ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 152, 65, 255));
 
 		render.ChannelsSplit(2);
-
 		render.ChannelsSetCurrent(1);
 
-		if(ImGui::Selectable(( (isDir ? " " : "") + file + "##selectable").c_str(), false))
+		if(ImGui::Selectable(((isDir ? " " : "") + file + "##selectable").c_str(), false))
 		{
 			if(isDir)
 			{
@@ -172,7 +177,7 @@ void FileViewMenu()
 
 				if(packet.flag == Flags::FAILURE)
 				{
-					printf(ERR "%s\n" CLEAR, packet.DataToStr().c_str());
+					printf(ERR "%s!\n" CLEAR, packet.DataToStr().c_str());
 				}
 
 				UpdateDirListContents();
@@ -183,23 +188,16 @@ void FileViewMenu()
 				RecvFile(file.c_str(), glb.serverSocket, glb.fileKey, true);
 			}
 		}
-		if(isDir)
-			ImGui::PopStyleColor();
+
+		if(isDir) ImGui::PopStyleColor();
 
 		render.ChannelsSetCurrent(0);
-		if(index % 2 == 1)
-			render.AddRectFilled(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), IM_COL32(26, 30, 60, 255));
-
+		if(index % 2 == 1) render.AddRectFilled(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), IM_COL32(26, 30, 60, 255));
 		render.ChannelsMerge();
-
-		// ImGui::PopStyleColor();
 
 		index++;
 	}
 
-	// if(ImGui::IsItemHovered())
-	// 	ImGui::Text("hovered!");
 	ImGui::EndListBox();
-
 	ImGui::End();
 }

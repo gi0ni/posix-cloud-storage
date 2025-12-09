@@ -1,10 +1,11 @@
-#ifndef CLIENT_NETWORK_H
-#define CLIENT_NETWORK_H
+#ifndef NETWORK_H
+#define NETWORK_H
 
 #include "packet.h"
 
 void Connect();
-int SendAuthReq(Flags flag);
+void SendAuthReq(Flags flag);
 void UpdateDirListContents();
+void HandleDropFile(const char* filepath);
 
 #endif

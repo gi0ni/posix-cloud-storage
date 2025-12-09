@@ -204,7 +204,7 @@ void* ServerWorker(void* arg)
 
 					if(found)
 					{
-						Packet response(Flags::FAILURE, NULL, 0);
+						Packet response(Flags::FAILURE, "User already exists");
 						response.Send(clientSocket);
 						info.auth = false;
 					}
@@ -265,6 +265,7 @@ void* ServerWorker(void* arg)
 					std::cout << packet.data << '\n';
 
 					std::string data = DecryptSSL(packet.data, packet.size - 8, info.secret_key);
+					std::cout << "fails in decrypt!!!\n";
 
 					std::stringstream stream;
 					stream << data;
@@ -326,12 +327,18 @@ void* ServerWorker(void* arg)
 							info.auth = true;
 							std::cout << info.userFiles->ChildElementCount() << '\n';
 							info.currDirXML = info.userFiles->RootElement();
+							if(info.currDirXML == nullptr)
+							{
+								info.currDirXML = info.userFiles->NewElement("files");
+								info.userFiles->InsertEndChild(info.currDirXML);
+							}
+
 							assert(info.currDirXML != nullptr);
 							break;
 						}
 					}
 
-					Packet response(Flags::FAILURE, NULL, 0);
+					Packet response(Flags::FAILURE, "Wrong credentials");
 					response.Send(clientSocket);
 
 					info.auth = false;
@@ -452,7 +459,7 @@ void* ServerWorker(void* arg)
 
 					if(dirname.size() == 0)
 					{
-						Packet response(Flags::FAILURE, "Bad name");
+						Packet response(Flags::FAILURE, "Invalid directory name");
 						response.Send(clientSocket);
 						break;
 					}
@@ -521,6 +528,19 @@ void* ServerWorker(void* arg)
 
 					Packet response(Flags::ACCEPT, NULL, 0);
 					response.Send(clientSocket);
+				}
+				break;
+
+				case Flags::LOGOUT:
+				{
+					if(info.auth == true && info.userFiles != nullptr)
+					{
+						info.userFiles->SaveFile( (info.userdir + "files.xml").c_str() );
+						delete info.userFiles;
+						info.userFiles = nullptr;
+					}
+
+					info.auth = false;
 				}
 				break;
 
