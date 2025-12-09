@@ -1,25 +1,20 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include <stdio.h>
-
 #include <string>
-#include <vector>
 
-#define ERR "\e[31m[ERROR] "
-#define WARN "\e[33m"
+#define ERR   "\e[31m[ERROR] "
+#define WARN  "\e[33m"
 #define CLEAR "\e[0m"
-#define OK "\e[32m[OK] "
+#define OK    "\e[32m[OK] "
 
 void PrintErr(const char* msg);
 
-void RandomBytes(void* buff, int sz);
-
-std::vector<std::string> Crawl(std::string dirname);
 void HexDump(const char* data, int sz);
-void HexDump(const std::string& data);
-bool isdir(const char* name);
+
 std::string FromHexString(const char* data, int sz);
 std::string ToHexString(const char* data, int sz);
+
+bool IsDirectory(const char* name);
 
 #endif

@@ -177,51 +177,54 @@ void UpdateDirListContents()
 	packet.Recv(glb.serverSocket);
 
 	std::stringstream stream;
-	stream.write(packet.data, packet.size - 8);
+	stream << packet.DataToStr();
+
 	glb.dirContents.clear();
 
 	while(!stream.eof())
 	{
 		std::string filename;
 		bool isDir;
-		stream >> isDir;
-		stream.ignore(1, '\n');
+
+		stream >> isDir; stream.ignore(1, '\n');
 		std::getline(stream, filename, '\n');
 
-		// FIX:
 		if(filename.size() == 0) break;
 
 		glb.dirContents.push_back(std::make_pair(filename, isDir));
 	}
 
-	std::sort(glb.dirContents.begin(), glb.dirContents.end(), [](const auto& leftpair, const auto& rightpair) {
+	std::sort(glb.dirContents.begin(), glb.dirContents.end(), [](const auto& above, const auto& below)
+	{
+		std::string filenameA = above.first;
+		std::string filenameB = below.first;
+		bool isDirA = above.second;
+		bool isDirB = below.second;
 
-		std::string l = leftpair.first;
-		std::string r = rightpair.first;
-
-		if(leftpair.second && !rightpair.second)
+		if(isDirA && !isDirB)
 			return true;
-		if(!leftpair.second && rightpair.second)
+
+		if(!isDirA && isDirB)
 			return false;
 
-		return l < r;
+		return above.first < below.first;
 	});
 }
 
 void HandleDropFile(const char* filepath)
 {
-	std::cout << filepath << '\n';
+	std::cout << "Detected dropped file at path: " << filepath << '\n';
 
 	if(glb.auth == true)
 	{
 		try
 		{
-			SendFile(filepath, glb.serverSocket, glb.fileKey); // FIX: check if file exists before sending message begin to server
+			SendFile(filepath, glb.serverSocket, glb.fileKey); // FIX: check if file exists?
 			UpdateDirListContents();
 		}
 		catch(std::exception& e)
 		{
-
+			// FIX:
 		}
 	}
 	else

@@ -50,7 +50,7 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	if(isdir("usr") == false)
+	if(IsDirectory("usr") == false)
 	{
 		mkdir("usr", 0775);
 		std::cout << "no!\n";

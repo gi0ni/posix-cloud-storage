@@ -19,7 +19,7 @@ enum Flags
 	SEND_FILE_END,
 	SEND_FILE_REQUEST,
 
-	DIR_LIST_REQUEST, // send cwd here
+	DIR_LIST_REQUEST, // TODO: send cwd here
 	CHANGE_CWD,
 	CREATE_DIR,
 
@@ -47,9 +47,14 @@ class Packet
 	std::string DataToStr();
 };
 
+
+// encryption funcs
+void RandomBytes(void* buff, int sz);
+
 std::string Encrypt(const char* data, int sz, unsigned char key[32]);
 std::string Decrypt(const char* data, int sz, unsigned char key[32]);
 std::string DecryptSSL(const char* data, int sz, unsigned char key[32]);
+
 void SendFile(const char* filepath, int socket, unsigned char key[32], bool encrypt = true);
 void RecvFile(const char* filepath, int socket, unsigned char key[32], bool decrypt = true);
 

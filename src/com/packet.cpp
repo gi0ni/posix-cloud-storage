@@ -94,6 +94,14 @@ std::string Packet::DataToStr()
 	return std::string(data, size - 8);
 }
 
+
+void RandomBytes(void* buff, int sz)
+{
+	int fd = open("/dev/random", O_RDONLY);
+	read(fd, buff, sz);
+	close(fd);
+}
+
 std::string Encrypt(const char* data, int sz, unsigned char key[32])
 {
 	std::string output(sz + 16, 0);
@@ -116,11 +124,11 @@ std::string Encrypt(const char* data, int sz, unsigned char key[32])
 
 	std::string final_output = std::string((char*)nonce, 12) + output;
 
-	std::cout << WARN "Sending encrypted message:\n" CLEAR;
-	std::cout << "     nonce: "; HexDump(std::string(&final_output[0], 12));
-	std::cout << "cyphertext: "; HexDump(std::string(&final_output[12], final_output.size() - 12 - 16));
-	std::cout << "       MAC: "; HexDump(std::string(&final_output[final_output.size() - 16], 16));
-	std::cout << '\n';
+	// std::cout << WARN "Sending encrypted message:\n" CLEAR;
+	// std::cout << "     nonce: "; HexDump(std::string(&final_output[0], 12));
+	// std::cout << "cyphertext: "; HexDump(std::string(&final_output[12], final_output.size() - 12 - 16));
+	// std::cout << "       MAC: "; HexDump(std::string(&final_output[final_output.size() - 16], 16));
+	// std::cout << '\n';
 
 	// return (char*)nonce + output; OMFG
 	return final_output;
@@ -163,10 +171,10 @@ std::string DecryptSSL(const char* data, int sz, unsigned char key[32])
 	printf("F\n");
 	EVP_CIPHER_CTX_free(ctx);
 
-	std::cout << "AES MESSAGE:\n";
-	std::cout << "nonce     : "; HexDump(std::string((char*)data, 12));
-	std::cout << "cyphertext: "; HexDump(std::string((char*)(data + 12), sz - 12 - 16));
-	std::cout << "MAC       : "; HexDump(std::string((char*)(data + sz - 16), 16));
+	// std::cout << "AES MESSAGE:\n";
+	// std::cout << "nonce     : "; HexDump(std::string((char*)data, 12));
+	// std::cout << "cyphertext: "; HexDump(std::string((char*)(data + 12), sz - 12 - 16));
+	// std::cout << "MAC       : "; HexDump(std::string((char*)(data + sz - 16), 16));
 
 	std::cout << "OMG IT WORKED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n";
 	return plaintext;
@@ -196,10 +204,10 @@ std::string Decrypt(const char* data, int sz, unsigned char key[32])
 			key
 			);
 
-	std::cout << "AES MESSAGE:\n";
-	std::cout << "nonce     : "; HexDump(std::string((char*)data, 12));
-	std::cout << "cyphertext: "; HexDump(std::string((char*)(data + 12), sz - 12 - 16));
-	std::cout << "MAC       : "; HexDump(std::string((char*)(data + sz - 16), 16));
+	// std::cout << "AES MESSAGE:\n";
+	// std::cout << "nonce     : "; HexDump(std::string((char*)data, 12));
+	// std::cout << "cyphertext: "; HexDump(std::string((char*)(data + 12), sz - 12 - 16));
+	// std::cout << "MAC       : "; HexDump(std::string((char*)(data + sz - 16), 16));
 
 	if(err)
 		printf("DECRYPT ERROR OH NO\n");
