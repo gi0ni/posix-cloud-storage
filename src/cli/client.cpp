@@ -9,6 +9,7 @@
 #include "network.h"
 
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <imgui_impl_sdl2.h>
 #include <imgui_impl_sdlrenderer2.h>
 #include <SDL2/SDL.h>
@@ -63,6 +64,10 @@ int main(int argc, char** argv)
 
 		ImGui::PushFont(glb.mainFont);
 
+		ImGuiErrorRecoveryState state;
+		ImGui::ErrorRecoveryStoreState(&state);
+		io.ConfigErrorRecoveryEnableAssert = false;
+
 		try
 		{
 			ConnectMenu();
@@ -80,7 +85,8 @@ int main(int argc, char** argv)
 			glb.auth = false;
 			glb.connected = false;
 			close(glb.serverSocket);
-			break;
+
+			ImGui::ErrorRecoveryTryToRecoverState(&state);
 		}
 
 		ImGui::PopFont();
