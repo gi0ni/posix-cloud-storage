@@ -390,6 +390,8 @@ void* ServerWorker(void* arg)
 						file->FirstChildElement("birth")->SetText(time(NULL));
 					}
 
+					// save changes
+					info.userFilesXML->SaveFile( (info.userDir + "files.xml").c_str() );
 
 					printf(WARN "\n=============== File '%s' recv started. ===============\n" CLEAR, (info.userDir + info.fileID).c_str());
 					info.writeFd = open( (info.userDir + info.fileID).c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600 );
@@ -446,7 +448,7 @@ void* ServerWorker(void* arg)
 
 						while(dir)
 						{
-							std::string name = dir->FirstChildElement("name")->GetText();
+							std::string name = dir->Attribute("name");
 
 							stream << true << '\n' <<  name << '\n';
 							dir = dir->NextSiblingElement("dir");
@@ -525,7 +527,7 @@ void* ServerWorker(void* arg)
 
 					while(dir)
 					{
-						if(dir->FirstChildElement("name")->GetText() == dirname)
+						if(dir->Attribute("name") == dirname)
 						{
 							found = true;
 							break;
@@ -542,7 +544,7 @@ void* ServerWorker(void* arg)
 					}
 
 					XMLElement* newdir = info.cwdXML->InsertNewChildElement("dir");
-					newdir->InsertNewChildElement("name")->SetText(dirname.c_str());
+					newdir->SetAttribute("name", dirname.c_str());
 
 					// FIX: check for being unable to create
 
@@ -578,7 +580,7 @@ void* ServerWorker(void* arg)
 
 					while(dir)
 					{
-						if(dir->FirstChildElement("name")->GetText() == dirname)
+						if(dir->Attribute("name") == dirname)
 						{
 							info.cwdXML = dir;
 							break;

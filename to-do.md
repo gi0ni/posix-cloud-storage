@@ -1,9 +1,3 @@
-===== REDO =====
-[] use file ids
-[] file not on disk errors
-[] do encrypt filenames and store them on client after decrypting so you can just send them back omfg
-
-
 ===== FEATURES =====
 [] add Reed-Solomon for redundancy
 
@@ -15,12 +9,10 @@
 
 
 ===== FIXES =====
-[] username alfanumeric checking. do i need this actually..?
+[] username alfanumeric checking ----- do i need this actually..? yes. user can break xml database if they want
 
-[] add an id attribute to each file in xml
+[DONE] server uses ids for storing files
 [] send encrypted filenames to server
-[] server stores id on disk as filename
-[] client retrieves encrypted filename and decrypts
 
 [] client asks confirmation to overwrite files in current dir
 
