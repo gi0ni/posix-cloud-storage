@@ -1,3 +1,9 @@
+===== REDO =====
+[] use file ids
+[] file not on disk errors
+[] do encrypt filenames and store them on client after decrypting so you can just send them back omfg
+
+
 ===== FEATURES =====
 [] add Reed-Solomon for redundancy
 

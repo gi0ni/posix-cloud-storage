@@ -185,7 +185,14 @@ void FileViewMenu()
 			}
 			else
 			{
-				RecvFile(file.c_str(), glb.serverSocket, glb.fileKey, true);
+				try
+				{
+					RecvFile(file.c_str(), glb.serverSocket, glb.fileKey, true);
+				}
+				catch(std::exception& e)
+				{
+					printf(ERR "%s\n" CLEAR, e.what());
+				}
 			}
 		}
 

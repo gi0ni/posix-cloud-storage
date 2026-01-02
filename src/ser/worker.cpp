@@ -34,7 +34,8 @@ struct ClientInfo
 	bool auth = false;
 
 	std::string userDir;
-	std::string currentFilename;
+	std::string diskFilename;
+	std::string encryptedFilename;
 	std::string filenameEncrypted;
 	int writeFd;
 	int currentFileSz;
@@ -240,6 +241,7 @@ void* ServerWorker(void* arg)
 
 						info.userFilesXML = new XMLDocument();
 						XMLElement* root = info.userFilesXML->NewElement("files");
+						root->SetAttribute("counter", 0);
 						info.userFilesXML->InsertEndChild(root);
 						info.userFilesXML->SaveFile((info.userDir + "files.xml").c_str());
 
@@ -347,11 +349,50 @@ void* ServerWorker(void* arg)
 					std::stringstream stream;
 					stream << packet.DataToStr();
 
-					stream >> info.currentFilename;
+					stream >> info.encryptedFilename;
 					stream >> info.currentFileSz;
 
-					printf(WARN "\n=============== File '%s' recv started. ===============\n" CLEAR, (info.userDir + info.currentFilename).c_str());
-					info.writeFd = open( (info.userDir + info.currentFilename).c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600 ); // FIX: use an id for filename instead
+					XMLElement* file;
+					bool found = false;
+
+					assert(info.cwdXML != nullptr);
+					file = info.cwdXML->FirstChildElement("file");
+
+					while(file)
+					{
+						if(info.encryptedFilename == file->FirstChildElement("name")->GetText())
+						{
+							found = true;
+							break;
+						}
+
+						file = file->NextSiblingElement("file");
+					}
+
+					if(found == false) // create
+					{
+						info.diskFilename = info.userFilesXML->FirstChildElement("files")->Attribute("counter");
+						info.userFilesXML->FirstChildElement("files")->SetAttribute("counter", std::stoi(info.diskFilename) + 1);
+
+						file = info.cwdXML->InsertNewChildElement("file");
+						file->SetAttribute("id", info.diskFilename.c_str());
+
+						file->InsertNewChildElement("name")->SetText(info.encryptedFilename.c_str());
+						file->InsertNewChildElement("size")->SetText(info.currentFileSz);
+						file->InsertNewChildElement("birth")->SetText(time(NULL));
+					}
+					else // overwrite
+					{
+						info.diskFilename = file->Attribute("id");
+
+						file->FirstChildElement("name")->SetText(info.encryptedFilename.c_str());
+						file->FirstChildElement("size")->SetText(info.currentFileSz);
+						file->FirstChildElement("birth")->SetText(time(NULL));
+					}
+
+
+					printf(WARN "\n=============== File '%s' recv started. ===============\n" CLEAR, (info.userDir + info.diskFilename).c_str());
+					info.writeFd = open( (info.userDir + info.diskFilename).c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600 ); // FIX: use an id for filename instead
 				}
 				break;
 
@@ -376,38 +417,7 @@ void* ServerWorker(void* arg)
 					if(info.auth == false)
 						break;
 
-					XMLElement* file;
-					bool found = false;
-
-					assert(info.cwdXML != nullptr);
-					file = info.cwdXML->FirstChildElement("file");
-
-					while(file)
-					{
-						if(info.currentFilename == file->FirstChildElement("name")->GetText())
-						{
-							found = true;
-							break;
-						}
-
-						file = file->NextSiblingElement("file");
-					}
-
-					if(found == false)
-					{
-						file = info.cwdXML->InsertNewChildElement("file");
-						file->InsertNewChildElement("name")->SetText(info.currentFilename.c_str());
-						file->InsertNewChildElement("size")->SetText(info.currentFileSz);
-						file->InsertNewChildElement("birth")->SetText(time(NULL));
-					}
-					else
-					{
-						file->FirstChildElement("name")->SetText(info.currentFilename.c_str());
-						file->FirstChildElement("size")->SetText(info.currentFileSz);
-						file->FirstChildElement("birth")->SetText(time(NULL));
-					}
-
-					printf(OK "File '%s' (%dB) was downloaded succesfully.\n" CLEAR, (info.userDir + info.currentFilename).c_str(), info.currentFileSz);
+					printf(OK "File '%s' (%dB) was downloaded succesfully.\n" CLEAR, (info.userDir + info.diskFilename).c_str(), info.currentFileSz);
 					close(info.writeFd);
 				}
 				break;
@@ -463,9 +473,35 @@ void* ServerWorker(void* arg)
 
 					// FIX: refuse to send dirs
 
-					std::string filename = std::string(packet.data, packet.size - 8);
-					std::string filepath = info.userDir + filename;
+					std::string wantEncryptedFile = std::string(packet.data, packet.size - 8);
 
+					XMLElement* file;
+					bool found = false;
+
+					assert(info.cwdXML != nullptr);
+					file = info.cwdXML->FirstChildElement("file");
+
+					while(file)
+					{
+						if(wantEncryptedFile == file->FirstChildElement("name")->GetText())
+						{
+							found = true;
+							break;
+						}
+
+						file = file->NextSiblingElement("file");
+					}
+
+					if(found == false)
+					{
+						Packet error(Flags::FAILURE, "File not found in database!");
+						error.Send(clientSocket);
+						printf(ERR "File not found in database! Aborted sending.\n" CLEAR);
+						break;
+					}
+
+					std::string realFilename = file->Attribute("id");
+					std::string filepath = info.userDir + realFilename;
 					SendFile(filepath.c_str(), clientSocket, (unsigned char*)"", false);
 				}
 				break;

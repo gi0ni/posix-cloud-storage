@@ -283,6 +283,14 @@ void SendFile(const char* filepath, int socket, unsigned char key[32], bool encr
 	// TODO: encrypt filename too
 
 	int fd = open(filepath, O_RDONLY);
+	if(fd < 0)
+	{
+		Packet error(Flags::FAILURE, "File not found on disk!");
+		error.Send(socket);
+		printf(ERR "File not found on disk! Aborted sending.\n" CLEAR);
+		return;
+	}
+
 	int size = lseek(fd, 0, SEEK_END);
 	lseek(fd, 0, SEEK_SET);
 
@@ -341,7 +349,12 @@ void RecvFile(const char* filepath, int socket, unsigned char key[32], bool decr
 
 	Packet packet(Flags::SEND_FILE_REQUEST, filepath, strlen(filepath));
 	packet.Send(socket);
+	
 	packet.Recv(socket);
+	if(packet.flag == Flags::FAILURE)
+	{
+		throw std::runtime_error(packet.DataToStr());
+	}
 
 	// FIX: check if filename is taken
 

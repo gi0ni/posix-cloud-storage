@@ -8,7 +8,6 @@
 #include <sys/stat.h>
 
 #include <stdlib.h>
-#include <errno.h>
 #include <cstring>
 #include <pthread.h>
 
