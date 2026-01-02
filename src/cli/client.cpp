@@ -100,7 +100,15 @@ int main(int argc, char** argv)
 	if(glb.connected)
 	{
 		Packet packet(Flags::QUIT, NULL, 0);
-		packet.Send(glb.serverSocket);
+
+		try
+		{
+			packet.Send(glb.serverSocket);
+		}
+		catch(std::exception& e)
+		{
+			// just quit
+		}
 
 		printf(WARN "\nDisconnected from server.\n" CLEAR);
 		close(glb.serverSocket);
