@@ -8,12 +8,12 @@
 class FileEntry
 {
 	public:
-	std::string decryptedFilename;
+	std::string filename;
 	bool isDir;
 
-	FileEntry(std::string decryptedFilename, bool isDir)
+	FileEntry(std::string filename, bool isDir)
 	{
-		this->decryptedFilename = decryptedFilename;
+		this->filename = filename;
 		this->isDir = isDir;
 	}
 };
@@ -47,6 +47,7 @@ class State
 	bool error = false;
 
 	std::string cwd = "/";
+	std::string displayCWD = "";
 	std::vector<FileEntry> dirContents;
 	char inputDirName[128];
 };

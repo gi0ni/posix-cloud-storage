@@ -196,8 +196,8 @@ void UpdateDirListContents()
 
 	std::sort(glb.dirContents.begin(), glb.dirContents.end(), [](const auto& above, const auto& below)
 	{
-		std::string filenameA = above.decryptedFilename;
-		std::string filenameB = below.decryptedFilename;
+		std::string filenameA = above.filename;
+		std::string filenameB = below.filename;
 		bool isDirA = above.isDir;
 		bool isDirB = below.isDir;
 
@@ -209,6 +209,16 @@ void UpdateDirListContents()
 
 		return filenameA < filenameB;
 	});
+
+	glb.displayCWD = glb.username;
+
+	std::stringstream ss; ss << glb.cwd;
+	std::string token;
+	while(std::getline(ss, token, '/'))
+	{
+		glb.displayCWD += token;
+		glb.displayCWD += "  ";
+	}
 }
 
 void HandleDropFile(const char* filepath)

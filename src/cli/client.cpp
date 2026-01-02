@@ -73,7 +73,6 @@ int main(int argc, char** argv)
 			ConnectMenu();
 			AuthMenu();
 			FileViewMenu();
-			ContextMenu();
 		}
 		catch(std::exception& e)
 		{

@@ -4,6 +4,8 @@
 #include "network.h"
 #include "utils.h"
 
+#include <sstream>
+
 #include <imgui.h>
 
 
@@ -31,12 +33,24 @@ void ConnectMenu()
 	if(glb.connected == true)
 		return;
 
-	ImGui::Begin("Connect");
+	ImGui::Begin("Connect", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove);
+	ImVec2 screenSize = ImGui::GetIO().DisplaySize;
+	ImVec2 windowSize = ImGui::GetWindowSize();
+	ImGui::SetWindowPos(ImVec2((screenSize.x - windowSize.x)/2, (screenSize.y - windowSize.y)/2));
+
+	ImGui::SetCursorPosY(70);
 	ImGui::InputText("ADDR", glb.addr, 64, ImGuiInputTextFlags_CallbackCharFilter, InputFilterAlphanumeric);
 	ImGui::InputText("PORT", glb.port, 64, ImGuiInputTextFlags_CallbackCharFilter, InputFilterAlphanumeric);
 
-	if(ImGui::Button("Connect"))
+	ImGui::SetCursorPos(ImVec2(160, 160));
+	if(ImGui::Button("Connect", ImVec2(100, 30)))
 		Connect();
+
+	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8784, 0.1059, 0.1412, 1.0000));
+	ImGui::SameLine();
+	if(ImGui::Button("Exit", ImVec2(100, 30)))
+		glb.windowShouldClose = true;
+	ImGui::PopStyleColor();
 
 	if(glb.error)
 	{
@@ -54,11 +68,17 @@ void AuthMenu()
 	if(glb.connected == false || glb.auth == true)
 		return;
 
-	ImGui::Begin("Login");
+	ImGui::Begin("Login", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove);
+	ImVec2 screenSize = ImGui::GetIO().DisplaySize;
+	ImVec2 windowSize = ImGui::GetWindowSize();
+	ImGui::SetWindowPos(ImVec2((screenSize.x - windowSize.x)/2, (screenSize.y - windowSize.y)/2));
+
+	ImGui::SetCursorPosY(70);
 	ImGui::InputText("Username", glb.username, 64, ImGuiInputTextFlags_CallbackCharFilter, InputFilterAlphanumeric);
 	ImGui::InputText("Password", glb.password, 64, ImGuiInputTextFlags_Password | ImGuiInputTextFlags_CallbackCharFilter, InputFilterAlphanumeric);
 
-	if(ImGui::Button("Login"))
+	ImGui::SetCursorPos(ImVec2(100, 160));
+	if(ImGui::Button("Login", ImVec2(100, 30)))
 	{
 		try
 		{
@@ -74,7 +94,8 @@ void AuthMenu()
 		}
 	}
 
-	if(ImGui::Button("Register"))
+	ImGui::SameLine();
+	if(ImGui::Button("Register", ImVec2(100, 30)))
 	{
 		try
 		{
@@ -90,12 +111,15 @@ void AuthMenu()
 		}
 	}
 
-	if(ImGui::Button("Disconnect"))
+	ImGui::SameLine();
+	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8784, 0.1059, 0.1412, 1.0000));
+	if(ImGui::Button("Disconnect", ImVec2(100, 30)))
 	{
 		Packet packet(Flags::QUIT, NULL, 0);
 		packet.Send(glb.serverSocket);
 		glb.connected = false;
 	}
+	ImGui::PopStyleColor();
 
 	if(glb.error)
 	{
@@ -108,49 +132,46 @@ void AuthMenu()
 }
 
 
+void ContextMenuCreateDir();
+
 void FileViewMenu()
 {
 	if(glb.auth == false)
 		return;
 
-	ImGui::Begin("Files");
+	ImGui::Begin("Files", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove);
+	ImGui::SetWindowPos(ImVec2(0, 0));
+	ImGui::SetWindowSize(ImGui::GetIO().DisplaySize);
 
-	if(ImGui::Button("Logout"))
+	ImGui::SetCursorPosY(50);
+	ImGui::Text("%s", (glb.displayCWD).c_str());
+
+	ImGui::SameLine();
+	ImGui::SetCursorPosX(ImGui::GetWindowSize().x - 110);
+	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7784, 0.1059, 0.1412, 1.0000));
+	if(ImGui::Button("Logout", ImVec2(100, 30)))
 	{
 		Packet packet(Flags::LOGOUT, NULL, 0);
 		packet.Send(glb.serverSocket);
 		glb.auth = false;
+		ImGui::PopStyleColor();
 		ImGui::End();
 		return;
 	}
+	ImGui::PopStyleColor();
 
-	ImGui::Text("%s", (glb.cwd).c_str());
-
-	ImGui::InputText("##dirname", glb.inputDirName, 128);
-	ImGui::SameLine();
-	if(ImGui::Button("Create Folder"))
-	{
-		Packet packet(Flags::CREATE_DIR, glb.inputDirName, strlen(glb.inputDirName));
-		packet.Send(glb.serverSocket);
-		packet.Recv(glb.serverSocket);
-
-		if(packet.flag == Flags::FAILURE)
-		{
-			printf(ERR "%s!\n" CLEAR, packet.DataToStr().c_str());
-		}
-
-		UpdateDirListContents();
-	}
-
+	ImGui::SetCursorPosY(100);
 	if(!ImGui::BeginListBox("##filelist", ImGui::GetContentRegionAvail()))
 	{
 		ImGui::End();
 		return;
 	}
 
+	ContextMenuCreateDir();
 
 	ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 152, 65, 255));
-	if(glb.cwd != "/" && ImGui::Selectable(" ..", false))
+	ImGui::SetCursorPosX(10);
+	if(glb.cwd != "/" && ImGui::Selectable("  ..", false))
 	{
 		Packet packet(Flags::CHANGE_CWD, "../");
 		packet.Send(glb.serverSocket);
@@ -161,19 +182,20 @@ void FileViewMenu()
 			printf(ERR "%s!\n" CLEAR, packet.DataToStr().c_str());
 		}
 
-		UpdateDirListContents();
-
 		int index = glb.cwd.substr(0, glb.cwd.size() - 1).find_last_of("/");
 		glb.cwd = glb.cwd.substr(0, index + 1);
+
+		UpdateDirListContents();
 	}
 	ImGui::PopStyleColor();
 
 	ImDrawList& render = *ImGui::GetWindowDrawList();
 
-	int index = 0 + (glb.cwd != "/");
+	int rownum = 0 + (glb.cwd != "/");
+	int index = 0;
 	for(auto pair : glb.dirContents)
 	{
-		std::string file = pair.decryptedFilename;
+		std::string file = pair.filename;
 		bool isDir = pair.isDir;
 
 		if(isDir) ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 152, 65, 255));
@@ -181,7 +203,8 @@ void FileViewMenu()
 		render.ChannelsSplit(2);
 		render.ChannelsSetCurrent(1);
 
-		if(ImGui::Selectable(((isDir ? " " : "") + file + "##selectable").c_str(), false))
+		ImGui::SetCursorPosX(10);
+		if(ImGui::Selectable(((isDir ? "  " : "") + file + "##selectable").c_str(), false))
 		{
 			if(isDir)
 			{
@@ -194,8 +217,8 @@ void FileViewMenu()
 					printf(ERR "%s!\n" CLEAR, packet.DataToStr().c_str());
 				}
 
-				UpdateDirListContents();
 				glb.cwd += (file + "/");
+				UpdateDirListContents();
 			}
 			else
 			{
@@ -213,9 +236,59 @@ void FileViewMenu()
 		if(isDir) ImGui::PopStyleColor();
 
 		render.ChannelsSetCurrent(0);
-		if(index % 2 == 1) render.AddRectFilled(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), IM_COL32(26, 30, 60, 255));
+		if(rownum % 2 == 1) render.AddRectFilled(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), IM_COL32(26, 30, 60, 255));
 		render.ChannelsMerge();
 
+		if(ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+		{
+			ImGui::OpenPopup( ("ContextMenu" + std::to_string(index)).c_str()  );
+		}
+
+		if(ImGui::BeginPopup( ("ContextMenu" + std::to_string(index)).c_str() ))
+		{
+			ImGui::Text("%s", pair.filename.c_str());
+			ImGui::Text("―――――――――――――――");
+
+			if(isDir && ImGui::MenuItem("Open"))
+			{
+				Packet packet(Flags::FILE_RENAME, NULL, 0);
+				packet.Send(glb.serverSocket);
+			}
+
+			if(!isDir && ImGui::MenuItem("Download"))
+			{
+				Packet packet(Flags::FILE_RENAME, NULL, 0);
+				packet.Send(glb.serverSocket);
+			}
+
+			if(ImGui::MenuItem("Rename"))
+			{
+				Packet packet(Flags::FILE_RENAME, NULL, 0);
+				packet.Send(glb.serverSocket);
+			}
+
+			if(ImGui::MenuItem("Copy"))
+			{
+				Packet packet(Flags::FILE_COPY, NULL, 0);
+				packet.Send(glb.serverSocket);
+			}
+
+			if(ImGui::MenuItem("Move"))
+			{
+				Packet packet(Flags::FILE_MOVE, NULL, 0);
+				packet.Send(glb.serverSocket);
+			}
+
+			if(ImGui::MenuItem("Delete"))
+			{
+				Packet packet(Flags::FILE_DELETE, NULL, 0);
+				packet.Send(glb.serverSocket);
+			}
+
+			ImGui::EndPopup();
+		}
+
+		rownum++;
 		index++;
 	}
 
@@ -223,37 +296,69 @@ void FileViewMenu()
 	ImGui::End();
 }
 
-
-void ContextMenu()
+void ContextMenuCreateDir()
 {
-	if(glb.auth == false)
-		return;
-
-	ImGui::Begin("Context Menu");
-
-	if(ImGui::Button("DELETE"))
+	if(ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
 	{
-		Packet packet(Flags::FILE_DELETE, NULL, 0);
-		packet.Send(glb.serverSocket);
+		ImGui::OpenPopup("ListBoxContextMenu");
 	}
 
-	if(ImGui::Button("RENAME"))
+	bool flag = false;
+
+	if(ImGui::BeginPopup("ListBoxContextMenu"))
 	{
-		Packet packet(Flags::FILE_RENAME, NULL, 0);
-		packet.Send(glb.serverSocket);
+		if(ImGui::MenuItem(" +   New directory"))
+			flag = true;
+
+		ImGui::EndPopup();
 	}
 
-	if(ImGui::Button("COPY"))
+	if(flag)
 	{
-		Packet packet(Flags::FILE_COPY, NULL, 0);
-		packet.Send(glb.serverSocket);
+		ImGui::OpenPopup("DirnameInputModal");
+		ImGui::SetNextWindowPos(ImGui::GetIO().MousePos);
+		flag = false;
 	}
 
-	if(ImGui::Button("MOVE"))
+	if(ImGui::BeginPopup("DirnameInputModal"))
 	{
-		Packet packet(Flags::FILE_MOVE, NULL, 0);
-		packet.Send(glb.serverSocket);
-	}
+		ImGui::SetWindowFontScale(1.2);
+		ImGui::Text("New directory");
+		ImGui::SetWindowFontScale(1);
+		ImGui::Text("――――――――――――――――――――――");
 
-	ImGui::End();
+		ImGui::SetCursorPosY(70);
+		ImGui::SetItemDefaultFocus();
+		bool pressedEnter = false;
+		if(ImGui::InputText("##dirname", glb.inputDirName, 128, ImGuiInputTextFlags_CallbackCharFilter | ImGuiInputTextFlags_EnterReturnsTrue, InputFilterAlphanumeric))
+			pressedEnter = true;
+
+		ImGui::SetCursorPosX(ImGui::GetWindowSize().x - 220);
+		ImGui::SetCursorPosY(120);
+		if(ImGui::Button("Cancel", ImVec2(100, 30)))
+		{
+			ImGui::CloseCurrentPopup();
+		}
+
+		ImGui::SameLine();
+		ImGui::SetCursorPosX(ImGui::GetWindowSize().x - 110);
+
+		if(ImGui::Button("OK", ImVec2(100, 30)) || pressedEnter)
+		{
+			Packet packet(Flags::CREATE_DIR, glb.inputDirName, strlen(glb.inputDirName));
+			packet.Send(glb.serverSocket);
+			packet.Recv(glb.serverSocket);
+
+			if(packet.flag == Flags::FAILURE)
+			{
+				printf(ERR "%s!\n" CLEAR, packet.DataToStr().c_str());
+			}
+
+			UpdateDirListContents();
+			ImGui::CloseCurrentPopup();
+			glb.inputDirName[0] = '\0';
+		}
+
+		ImGui::EndPopup();
+	}
 }
