@@ -5,8 +5,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "../bin")
 
 find_package(SDL2 REQUIRED)
-# find_package(tinyxml2 REQUIRED)
+# find_package(imgui REQUIRED)    # in proj
+# find_package(tinyxml2 REQUIRED) # in proj
 # find_package(OpenSSL REQUIRED)
+# find_package(libsodium REQUIRED)
 
 include_directories("inc" "src/com")
 file(GLOB COMMON_SRCS "src/com/*.cpp")
