@@ -10,12 +10,10 @@ class FileEntry
 	public:
 	std::string filename;
 	bool isDir;
+	int size;
+	std::string date;
 
-	FileEntry(std::string filename, bool isDir)
-	{
-		this->filename = filename;
-		this->isDir = isDir;
-	}
+	FileEntry() { }
 };
 
 class State

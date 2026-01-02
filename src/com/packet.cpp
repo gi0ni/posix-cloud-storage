@@ -31,7 +31,7 @@ std::string FlagToStr(Flags flag)
 		case SEND_FILE_BEGIN:   return "SEND_FILE_BEGIN";
 		case SEND_FILE_CHUNK:   return "SEND_FILE_CHUNK";
 		case SEND_FILE_END:     return "SEND_FILE_END";
-		case SEND_FILE_REQUEST: return "SEND_FILE_REQUEST";
+		case FILE_REQUEST:      return "FILE_REQUEST";
 
 		case DIR_LIST_REQUEST:  return "DIR_LIST_REQUEST";
 		case CHANGE_CWD:        return "CHANGE_CWD";
@@ -347,7 +347,7 @@ void RecvFile(const char* filepath, int socket, unsigned char key[32], bool decr
 {
 	printf(WARN "\n=============== File '%s' recv started. ===============\n" CLEAR, filepath);
 
-	Packet packet(Flags::SEND_FILE_REQUEST, filepath, strlen(filepath));
+	Packet packet(Flags::FILE_REQUEST, filepath, strlen(filepath));
 	packet.Send(socket);
 	
 	packet.Recv(socket);

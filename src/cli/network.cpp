@@ -13,6 +13,7 @@
 #include "packet.h"
 
 #include <cstdlib>
+#include <ctime>
 #include <iostream>
 #include <vector>
 #include <string>
@@ -183,15 +184,30 @@ void UpdateDirListContents()
 
 	while(!stream.eof())
 	{
-		std::string filename;
-		bool isDir;
+		FileEntry entry;
 
-		stream >> isDir; stream.ignore(1, '\n');
-		std::getline(stream, filename, '\n');
+		stream >> entry.isDir; stream.ignore(1, '\n');
+		std::getline(stream, entry.filename, '\n');
+		
+		if(entry.isDir == false)
+		{
+			stream >> entry.size;
 
-		if(filename.size() == 0) break;
+			long long timestamp; stream >> timestamp;
+			struct tm* date = localtime((time_t*)&timestamp);
+			if(date)
+			{
+				entry.date = std::to_string(date->tm_mday) + "/" + std::to_string(date->tm_mon + 1) + "/" + std::to_string(date->tm_year + 1900);
+			}
+			else
+			{
+				entry.date = "unknown date";
+			}
+		}
 
-		glb.dirContents.push_back(FileEntry(filename, isDir));
+		if(entry.filename.size() == 0) break;
+
+		glb.dirContents.push_back(entry);
 	}
 
 	std::sort(glb.dirContents.begin(), glb.dirContents.end(), [](const auto& above, const auto& below)

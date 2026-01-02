@@ -194,10 +194,10 @@ void FileViewMenu()
 
 	int rownum = 0 + (glb.cwd != "/");
 	int index = 0;
-	for(auto pair : glb.dirContents)
+	for(auto entry : glb.dirContents)
 	{
-		std::string file = pair.filename;
-		bool isDir = pair.isDir;
+		std::string file = entry.filename;
+		bool isDir = entry.isDir;
 
 		if(isDir) ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 152, 65, 255));
 
@@ -239,6 +239,11 @@ void FileViewMenu()
 		if(rownum % 2 == 1) render.AddRectFilled(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), IM_COL32(26, 30, 60, 255));
 		render.ChannelsMerge();
 
+		if(ImGui::IsItemHovered() && entry.isDir == false)
+			ImGui::SetTooltip("%s\n%d bytes\n%s", entry.filename.c_str(), entry.size, entry.date.c_str());
+
+
+		// context menu
 		if(ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
 		{
 			ImGui::OpenPopup( ("ContextMenu" + std::to_string(index)).c_str()  );
@@ -246,36 +251,12 @@ void FileViewMenu()
 
 		if(ImGui::BeginPopup( ("ContextMenu" + std::to_string(index)).c_str() ))
 		{
-			ImGui::Text("%s", pair.filename.c_str());
+			ImGui::Text("%s", entry.filename.c_str());
 			ImGui::Text("―――――――――――――――");
-
-			if(isDir && ImGui::MenuItem("Open"))
-			{
-				Packet packet(Flags::FILE_RENAME, NULL, 0);
-				packet.Send(glb.serverSocket);
-			}
-
-			if(!isDir && ImGui::MenuItem("Download"))
-			{
-				Packet packet(Flags::FILE_RENAME, NULL, 0);
-				packet.Send(glb.serverSocket);
-			}
 
 			if(ImGui::MenuItem("Rename"))
 			{
 				Packet packet(Flags::FILE_RENAME, NULL, 0);
-				packet.Send(glb.serverSocket);
-			}
-
-			if(ImGui::MenuItem("Copy"))
-			{
-				Packet packet(Flags::FILE_COPY, NULL, 0);
-				packet.Send(glb.serverSocket);
-			}
-
-			if(ImGui::MenuItem("Move"))
-			{
-				Packet packet(Flags::FILE_MOVE, NULL, 0);
 				packet.Send(glb.serverSocket);
 			}
 

@@ -439,8 +439,10 @@ void* ServerWorker(void* arg)
 						while(file)
 						{
 							std::string name = file->FirstChildElement("name")->GetText();
-
-							stream << false << '\n' << name << '\n';
+							std::string size = file->FirstChildElement("size")->GetText();
+							std::string birth = file->FirstChildElement("birth")->GetText();
+							
+							stream << false << '\n' << name << '\n' << size << '\n' << birth << '\n';
 							file = file->NextSiblingElement("file");
 						}
 
@@ -468,7 +470,7 @@ void* ServerWorker(void* arg)
 				}
 				break;
 
-				case Flags::SEND_FILE_REQUEST:
+				case Flags::FILE_REQUEST:
 				{
 					if(info.auth == false)
 						break;
