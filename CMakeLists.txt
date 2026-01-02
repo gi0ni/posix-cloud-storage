@@ -4,11 +4,16 @@ project(hw2)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "../bin")
 
+### deps ###
+# SDL2
+# imgui
+# tinyxml2
+# OpenSSL
+# libsodium
+# libcorrect
+
 find_package(SDL2 REQUIRED)
-# find_package(imgui REQUIRED)    # in proj
-# find_package(tinyxml2 REQUIRED) # in proj
-# find_package(OpenSSL REQUIRED)
-# find_package(libsodium REQUIRED)
+# add_subdirectory("lib/libcorrect")
 
 include_directories("inc" "src/com")
 file(GLOB COMMON_SRCS "src/com/*.cpp")

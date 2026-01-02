@@ -1,6 +1,11 @@
 ===== FEATURES =====
-[] missing file manip
+file manip:
+[] delete
+[] rename
+[] move with drag and drop
+
 [] add Reed-Solomon for redundancy
+~~~> for this to work i need: to store each part of a file
 
 
 ===== GUI =====
@@ -17,6 +22,7 @@
 [NOPE] send encrypted filenames to server
 
 [] client asks confirmation to overwrite files in current dir
+[] don't overwrite files in downloads add (1) at end
 
 
 ===== UPDATE DOCS =====

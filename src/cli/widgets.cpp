@@ -4,8 +4,6 @@
 #include "network.h"
 #include "utils.h"
 
-#include <sstream>
-
 #include <imgui.h>
 
 
@@ -239,9 +237,13 @@ void FileViewMenu()
 		if(rownum % 2 == 1) render.AddRectFilled(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), IM_COL32(26, 30, 60, 255));
 		render.ChannelsMerge();
 
-		if(ImGui::IsItemHovered() && entry.isDir == false)
-			ImGui::SetTooltip("%s\n%d bytes\n%s", entry.filename.c_str(), entry.size, entry.date.c_str());
-
+		if(ImGui::IsItemHovered())
+		{
+			if(entry.isDir == false)
+				ImGui::SetTooltip("%s\n%d bytes\n%s", entry.filename.c_str(), entry.size, entry.date.c_str());
+			else
+				ImGui::SetTooltip("%s\n", entry.filename.c_str());
+		}
 
 		// context menu
 		if(ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
