@@ -9,7 +9,7 @@
 
 
 ===== FIXES =====
-[] username alfanumeric checking ----- do i need this actually..? yes. user can break xml database if they want
+[DONE] text input alphanumeric checking
 
 [DONE] server uses ids for storing files
 [] send encrypted filenames to server

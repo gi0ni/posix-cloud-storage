@@ -10,14 +10,30 @@
 // TODO: file preview?
 
 
+int InputFilterAlphanumeric(ImGuiInputTextCallbackData* data)
+{
+	char chr = data->EventChar;
+
+	if(chr != 0)
+		if(!std::isalpha(chr) && !std::isdigit(chr) && chr != '_' && chr != '.')
+		{
+			glb.error = true;
+			glb.errorMsg = "Alphanumeric, underscore and dot characters only";
+			return 1;
+		}
+
+	return 0;
+}
+
+
 void ConnectMenu()
 {
 	if(glb.connected == true)
 		return;
 
 	ImGui::Begin("Connect");
-	ImGui::InputText("ADDR", glb.addr, 64);
-	ImGui::InputText("PORT", glb.port, 64);
+	ImGui::InputText("ADDR", glb.addr, 64, ImGuiInputTextFlags_CallbackCharFilter, InputFilterAlphanumeric);
+	ImGui::InputText("PORT", glb.port, 64, ImGuiInputTextFlags_CallbackCharFilter, InputFilterAlphanumeric);
 
 	if(ImGui::Button("Connect"))
 		Connect();
@@ -39,8 +55,8 @@ void AuthMenu()
 		return;
 
 	ImGui::Begin("Login");
-	ImGui::InputText("Username", glb.username, 64); // FIX: limit chars to alphanumeric
-	ImGui::InputText("Password", glb.password, 64, ImGuiInputTextFlags_Password);
+	ImGui::InputText("Username", glb.username, 64, ImGuiInputTextFlags_CallbackCharFilter, InputFilterAlphanumeric);
+	ImGui::InputText("Password", glb.password, 64, ImGuiInputTextFlags_Password | ImGuiInputTextFlags_CallbackCharFilter, InputFilterAlphanumeric);
 
 	if(ImGui::Button("Login"))
 	{
