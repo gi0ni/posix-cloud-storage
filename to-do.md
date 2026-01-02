@@ -9,7 +9,7 @@
 
 
 ===== FIXES =====
-[] username alfanumeric checking
+[] username alfanumeric checking. do i need this actually..?
 
 [] add an id attribute to each file in xml
 [] send encrypted filenames to server
