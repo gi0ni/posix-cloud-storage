@@ -34,7 +34,7 @@ struct ClientInfo
 	bool auth = false;
 
 	std::string userDir;
-	std::string diskFilename;
+	std::string fileID;
 	std::string encryptedFilename;
 	std::string filenameEncrypted;
 	int writeFd;
@@ -371,11 +371,11 @@ void* ServerWorker(void* arg)
 
 					if(found == false) // create
 					{
-						info.diskFilename = info.userFilesXML->FirstChildElement("files")->Attribute("counter");
-						info.userFilesXML->FirstChildElement("files")->SetAttribute("counter", std::stoi(info.diskFilename) + 1);
+						info.fileID = info.userFilesXML->FirstChildElement("files")->Attribute("counter");
+						info.userFilesXML->FirstChildElement("files")->SetAttribute("counter", std::stoi(info.fileID) + 1);
 
 						file = info.cwdXML->InsertNewChildElement("file");
-						file->SetAttribute("id", info.diskFilename.c_str());
+						file->SetAttribute("id", info.fileID.c_str());
 
 						file->InsertNewChildElement("name")->SetText(info.encryptedFilename.c_str());
 						file->InsertNewChildElement("size")->SetText(info.currentFileSz);
@@ -383,7 +383,7 @@ void* ServerWorker(void* arg)
 					}
 					else // overwrite
 					{
-						info.diskFilename = file->Attribute("id");
+						info.fileID = file->Attribute("id");
 
 						file->FirstChildElement("name")->SetText(info.encryptedFilename.c_str());
 						file->FirstChildElement("size")->SetText(info.currentFileSz);
@@ -391,8 +391,8 @@ void* ServerWorker(void* arg)
 					}
 
 
-					printf(WARN "\n=============== File '%s' recv started. ===============\n" CLEAR, (info.userDir + info.diskFilename).c_str());
-					info.writeFd = open( (info.userDir + info.diskFilename).c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600 ); // FIX: use an id for filename instead
+					printf(WARN "\n=============== File '%s' recv started. ===============\n" CLEAR, (info.userDir + info.fileID).c_str());
+					info.writeFd = open( (info.userDir + info.fileID).c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600 );
 				}
 				break;
 
@@ -417,7 +417,7 @@ void* ServerWorker(void* arg)
 					if(info.auth == false)
 						break;
 
-					printf(OK "File '%s' (%dB) was downloaded succesfully.\n" CLEAR, (info.userDir + info.diskFilename).c_str(), info.currentFileSz);
+					printf(OK "File '%s' (%dB) was downloaded succesfully.\n" CLEAR, (info.userDir + info.fileID).c_str(), info.currentFileSz);
 					close(info.writeFd);
 				}
 				break;
