@@ -169,8 +169,9 @@ void FileViewMenu()
 
 	ContextMenuCreateDir();
 
+
+	// go back
 	ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 152, 65, 255));
-	ImGui::SetCursorPosX(10);
 	if(glb.cwd != "/" && ImGui::Selectable("  ..", false))
 	{
 		Packet packet(Flags::CHANGE_CWD, "../");
@@ -203,7 +204,6 @@ void FileViewMenu()
 		render.ChannelsSplit(2);
 		render.ChannelsSetCurrent(1);
 
-		ImGui::SetCursorPosX(10);
 		if(ImGui::Selectable(((isDir ? "  " : "") + file + "##selectable").c_str(), false))
 		{
 			if(isDir)
@@ -298,7 +298,7 @@ void FileViewMenu()
 
 void ContextMenuCreateDir()
 {
-	if(ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+	if(ImGui::IsMouseClicked(ImGuiMouseButton_Right))
 	{
 		ImGui::OpenPopup("ListBoxContextMenu");
 	}
