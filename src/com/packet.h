@@ -51,7 +51,7 @@ class Packet
 
 
 // encryption funcs
-#define CHUNK_SIZE 512
+#define CHUNK_SIZE 4096
 #define DISABLE_CRYPTO false
 
 void RandomBytes(void* buff, int sz);

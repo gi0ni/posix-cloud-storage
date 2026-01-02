@@ -95,26 +95,69 @@ Packet::~Packet()
 }
 
 
+int ReadExactBytes(int fd, void* ptr, int bytes)
+{
+	int totalBytes = 0;
+	int iterationCount = 0;
+
+	while(totalBytes < bytes)
+	{
+		int bytesRead = read(fd, (char*)(ptr) + totalBytes, bytes - totalBytes);
+		if(bytesRead < 0) // <= ?
+			throw std::runtime_error(std::string(strerror(errno)));
+
+		totalBytes += bytesRead;
+
+		iterationCount++;
+		if(iterationCount >= 100000)
+			throw std::runtime_error(std::string("Read passed iteration limit of 100000!"));
+	}
+
+	return totalBytes;
+}
+
+int WriteExactBytes(int fd, void* ptr, int bytes)
+{
+	int totalBytes = 0;
+	int iterationCount = 0;
+
+	while(totalBytes < bytes)
+	{
+		int bytesRead = write(fd, (char*)(ptr) + totalBytes, bytes - totalBytes);
+		if(bytesRead < 0) // <= ?
+			throw std::runtime_error(std::string(strerror(errno)));
+
+		totalBytes += bytesRead;
+
+		iterationCount++;
+		if(iterationCount >= 100000)
+			throw std::runtime_error(std::string("Write passed iteration limit of 100000!"));
+	}
+
+	return totalBytes;
+}
+
+
 void Packet::Recv(int fd)
 {
-	if(read(fd, &size, 4) <= 0) throw std::runtime_error(std::string(strerror(errno)));
-	if(read(fd, &flag, 4) <= 0) throw std::runtime_error(std::string(strerror(errno)));
+	ReadExactBytes(fd, &size, 4);
+	ReadExactBytes(fd, &flag, 4);
 
 	if(size > 8)
 	{
 		data = (char*)realloc(data, size - 8);
-		if(read(fd, data, size - 8) <= 0) throw std::runtime_error(std::string(strerror(errno)));
+		ReadExactBytes(fd, data, size - 8);
 	}
 }
 
 void Packet::Send(int fd)
 {
-	if(write(fd, &size, 4) <= 0) throw std::runtime_error(std::string(strerror(errno)));
-	if(write(fd, &flag, 4) <= 0) throw std::runtime_error(std::string(strerror(errno)));
+	WriteExactBytes(fd, &size, 4);
+	WriteExactBytes(fd, &flag, 4);
 	
 	if(size > 8)
 	{
-		if(write(fd, data, size - 8) <= 0) throw std::runtime_error(std::string(strerror(errno)));
+		WriteExactBytes(fd, data, size - 8);
 	}
 }
 
