@@ -191,15 +191,15 @@ void UpdateDirListContents()
 
 		if(filename.size() == 0) break;
 
-		glb.dirContents.push_back(std::make_pair(filename, isDir));
+		glb.dirContents.push_back(FileEntry(filename, isDir));
 	}
 
 	std::sort(glb.dirContents.begin(), glb.dirContents.end(), [](const auto& above, const auto& below)
 	{
-		std::string filenameA = above.first;
-		std::string filenameB = below.first;
-		bool isDirA = above.second;
-		bool isDirB = below.second;
+		std::string filenameA = above.decryptedFilename;
+		std::string filenameB = below.decryptedFilename;
+		bool isDirA = above.isDir;
+		bool isDirB = below.isDir;
 
 		if(isDirA && !isDirB)
 			return true;
@@ -207,7 +207,7 @@ void UpdateDirListContents()
 		if(!isDirA && isDirB)
 			return false;
 
-		return above.first < below.first;
+		return filenameA < filenameB;
 	});
 }
 

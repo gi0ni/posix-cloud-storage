@@ -589,6 +589,7 @@ void* ServerWorker(void* arg)
 						dir = dir->NextSiblingElement("dir");
 					}
 
+					// TODO: send cwd here
 					Packet response(Flags::SUCCESS, NULL, 0);
 					response.Send(clientSocket);
 				}

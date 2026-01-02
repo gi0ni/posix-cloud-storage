@@ -1,7 +1,5 @@
 #include "widgets.h"
 
-#include <iostream>
-
 #include "client_state.h"
 #include "network.h"
 #include "utils.h"
@@ -42,7 +40,7 @@ void AuthMenu()
 
 	ImGui::Begin("Login");
 	ImGui::InputText("Username", glb.username, 64); // FIX: limit chars to alphanumeric
-	ImGui::InputText("Password", glb.password, 64);
+	ImGui::InputText("Password", glb.password, 64, ImGuiInputTextFlags_Password);
 
 	if(ImGui::Button("Login"))
 	{
@@ -159,8 +157,8 @@ void FileViewMenu()
 	int index = 0 + (glb.cwd != "/");
 	for(auto pair : glb.dirContents)
 	{
-		std::string file = pair.first;
-		bool isDir = pair.second;
+		std::string file = pair.decryptedFilename;
+		bool isDir = pair.isDir;
 
 		if(isDir) ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 152, 65, 255));
 

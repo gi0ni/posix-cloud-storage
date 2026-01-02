@@ -5,6 +5,19 @@
 #include <string>
 #include <imgui.h>
 
+class FileEntry
+{
+	public:
+	std::string decryptedFilename;
+	bool isDir;
+
+	FileEntry(std::string decryptedFilename, bool isDir)
+	{
+		this->decryptedFilename = decryptedFilename;
+		this->isDir = isDir;
+	}
+};
+
 class State
 {
 	private:
@@ -34,7 +47,7 @@ class State
 	bool error = false;
 
 	std::string cwd = "/";
-	std::vector<std::pair<std::string, bool>> dirContents;
+	std::vector<FileEntry> dirContents;
 	char inputDirName[128];
 };
 
