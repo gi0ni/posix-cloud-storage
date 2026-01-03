@@ -395,6 +395,7 @@ void* ServerWorker(void* arg)
 
 					printf(WARN "\n=============== File '%s' recv started. ===============\n" CLEAR, (info.userDir + info.fileID).c_str());
 					info.writeFd = open( (info.userDir + info.fileID).c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600 );
+					info.chunkCount = 0;
 				}
 				break;
 
