@@ -1,7 +1,7 @@
 #!/bin/bash
 
 launch() {
-	gnome-terminal -- bash -ic "\
+	tmux new-window -n $3 "\
 		start=\$(date +%s%3N);
 		$1;
 		ret=\$?;
@@ -41,7 +41,7 @@ launch() {
 	return 0
 }
 
-launch "ninja -C build" "1"
+launch "ninja -C build" "1" "ninja"
 ret=$?
 
 serverArgs="--port 4023"
@@ -52,9 +52,9 @@ if [ $ret -eq 0 ]; then
 
 	ps aux | grep -P " ./bin/server " | grep -v "grep"
 	if [ $? -ne 0 ]; then
-		launch "./bin/server $serverArgs" "0"
+		launch "./bin/server $serverArgs" "0" "server"
 	fi
 
 	sleep 0.100
-	launch "./bin/client $clientArgs" "0"
+	launch "./bin/client $clientArgs" "0" "client"
 fi
