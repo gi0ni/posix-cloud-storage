@@ -645,14 +645,22 @@ void* ServerWorker(void* arg)
 					XMLElement* file = FindXMLElementChild(info.cwdXML, oldFilename);
 					if(file == NULL)
 					{
-						Packet response(Flags::FAILURE, "Failed to find file!");
+						Packet response(Flags::FAILURE, "Failed to find file");
 						response.Send(clientSocket);
 						break;
 					}
 
 					if(newFilename.size() == 0 || newFilename == "." || newFilename == "..")
 					{
-						Packet response(Flags::FAILURE, "Invalid filename!");
+						Packet response(Flags::FAILURE, "Invalid filename");
+						response.Send(clientSocket);
+						break;
+					}
+
+					XMLElement* other = FindXMLElementChild(info.cwdXML, newFilename);
+					if(other != NULL)
+					{
+						Packet response(Flags::FAILURE, "Already exists");
 						response.Send(clientSocket);
 						break;
 					}
