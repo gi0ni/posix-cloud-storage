@@ -4,7 +4,7 @@
 #include "network.h"
 #include "utils.h"
 
-#include <stdlib.h>
+#include <cstdlib>
 
 #include <imgui.h>
 #include <nfd.h>
@@ -134,6 +134,7 @@ void AuthMenu()
 
 
 void ContextMenuCreateDir();
+void ContextMenuRenameFile(int index, const std::string& filename);
 
 void FileViewMenu()
 {
@@ -259,20 +260,31 @@ void FileViewMenu()
 			ImGui::Text("%s", entry.filename.c_str());
 			ImGui::Text("―――――――――――――――");
 
-			if(ImGui::MenuItem("Rename"))
-			{
-				Packet packet(Flags::FILE_RENAME, NULL, 0);
-				packet.Send(glb.serverSocket);
-			}
-
 			if(ImGui::MenuItem("Delete"))
 			{
-				Packet packet(Flags::FILE_DELETE, NULL, 0);
+				Packet packet(Flags::FILE_DELETE, entry.filename);
 				packet.Send(glb.serverSocket);
+				UpdateDirListContents();
+			}
+
+			bool renameContextFlag = false;
+
+			if(ImGui::MenuItem("Rename"))
+			{
+				renameContextFlag = true;
 			}
 
 			ImGui::EndPopup();
+
+			if(renameContextFlag == true)
+			{
+				ImGui::OpenPopup( ("FileRenameInputModal" + std::to_string(index)).c_str());
+				ImGui::SetNextWindowPos(ImGui::GetIO().MousePos);
+				renameContextFlag = false;
+			}
 		}
+
+		ContextMenuRenameFile(index, entry.filename);
 
 		rownum++;
 		index++;
@@ -374,5 +386,54 @@ void UploadFileDialogue()
 	else 
 	{
 		printf(ERR "%s\n" CLEAR, NFD_GetError());
+	}
+}
+
+void ContextMenuRenameFile(int index, const std::string& filename)
+{
+	if(ImGui::BeginPopup( ("FileRenameInputModal" + std::to_string(index)).c_str() ))
+	{
+		ImGui::SetWindowFontScale(1.2);
+		ImGui::Text("Rename '%s'", filename.c_str());
+		ImGui::SetWindowFontScale(1);
+		ImGui::Text("――――――――――――――――――――――");
+
+		static char newFilename[200] = "";
+
+		ImGui::SetCursorPosY(70);
+		ImGui::SetItemDefaultFocus();
+		bool pressedEnter = false;
+		if(ImGui::InputText("##rfilename", newFilename, 128, ImGuiInputTextFlags_CallbackCharFilter | ImGuiInputTextFlags_EnterReturnsTrue, InputFilterAlphanumeric))
+			pressedEnter = true;
+
+		ImGui::SetCursorPosX(ImGui::GetWindowSize().x - 220);
+		ImGui::SetCursorPosY(120);
+		if(ImGui::Button("Cancel", ImVec2(100, 30)))
+		{
+			ImGui::CloseCurrentPopup();
+		}
+
+		ImGui::SameLine();
+		ImGui::SetCursorPosX(ImGui::GetWindowSize().x - 110);
+
+		if(ImGui::Button("OK", ImVec2(100, 30)) || pressedEnter)
+		{
+			std::string data = filename + "\n" + newFilename + "\n";
+
+			Packet packet(Flags::FILE_RENAME, data);
+			packet.Send(glb.serverSocket);
+			packet.Recv(glb.serverSocket);
+
+			if(packet.flag == Flags::FAILURE)
+			{
+				printf(ERR "%s!\n" CLEAR, packet.DataToStr().c_str());
+			}
+
+			UpdateDirListContents();
+			ImGui::CloseCurrentPopup();
+			newFilename[0] = '\0';
+		}
+
+		ImGui::EndPopup();
 	}
 }

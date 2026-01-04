@@ -24,6 +24,7 @@ using namespace tinyxml2;
 #include "utils.h"
 #include "packet.h"
 #include "server_state.h"
+#include "xml_utils.h"
 
 struct ClientInfo
 {
@@ -618,13 +619,51 @@ void* ServerWorker(void* arg)
 
 				case Flags::FILE_DELETE:
 				{
-					// TODO:
+					std::string filename = packet.DataToStr();
+					XMLElement* file = FindXMLElementChild(info.cwdXML, filename);
+
+					try
+					{
+						DeleteInferTypeXML(info.userDir, file);
+						info.userFilesXML->SaveFile( (info.userDir + "files.xml").c_str() );
+					}
+					catch(std::exception& e)
+					{
+						printf(ERR "%s\n" CLEAR, e.what());
+					}
 				}
 				break;
 
 				case Flags::FILE_RENAME:
 				{
-					// TODO:
+					std::stringstream stream;
+					stream << packet.DataToStr();
+
+					std::string oldFilename; stream >> oldFilename;
+					std::string newFilename; stream >> newFilename;
+
+					XMLElement* file = FindXMLElementChild(info.cwdXML, oldFilename);
+					if(file == NULL)
+					{
+						Packet response(Flags::FAILURE, "Failed to find file!");
+						response.Send(clientSocket);
+						break;
+					}
+
+					if(newFilename.size() == 0 || newFilename == "." || newFilename == "..")
+					{
+						Packet response(Flags::FAILURE, "Invalid filename!");
+						response.Send(clientSocket);
+						break;
+					}
+
+					if(file->Name() == std::string("file"))
+						file->FirstChildElement("name")->SetText(newFilename.c_str());
+					else if(file->Name() == std::string("dir"))
+						file->SetAttribute("name", newFilename.c_str());
+
+					Packet response(Flags::SUCCESS, NULL, 0);
+					response.Send(clientSocket);
 				}
 				break;
 

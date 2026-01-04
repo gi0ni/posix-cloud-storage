@@ -5,7 +5,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "../bin")
 
 ### deps ###
-# SDL2
+# SDL2 ~~~> libsdl2-dev
 # imgui
 # btzy/nativefiledialog-extended ~~~> libgtk-3-dev
 # tinyxml2
