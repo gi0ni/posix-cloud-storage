@@ -333,7 +333,7 @@ void SendFile(const char* filepath, int socket, unsigned char key[32], bool encr
 		bytesLeft -= readBytes;
 		chunkCount++;
 
-		printf(OK "Sent file chunk %d with size %dB! (%dB/%dB)\n" CLEAR, chunkCount, CHUNK_SIZE, size - bytesLeft, size);
+		printf(OK "Sent file chunk %d with size %dB! (%dB/%dB)\n" CLEAR, chunkCount, readBytes, size - bytesLeft, size);
 	}
 
 	Packet final(Flags::SEND_FILE_END, NULL, 0);
@@ -389,7 +389,7 @@ void RecvFile(const char* filepath, int socket, unsigned char key[32], bool decr
 		Packet response(Flags::SUCCESS, NULL, 0);
 		response.Send(socket);
 
-		printf(WARN "Received file chunk %d with size %dB! (%dB)\n" CLEAR, chunkCount, CHUNK_SIZE, size);
+		printf(WARN "Received file chunk %d with size %ldB! (%dB)\n" CLEAR, chunkCount, chunk.size(), size);
 	}
 
 	close(fd);

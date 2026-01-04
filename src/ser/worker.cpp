@@ -39,6 +39,7 @@ struct ClientInfo
 	std::string filenameEncrypted;
 	int writeFd;
 	int currentFileSz;
+	int currentFileRealSzWithEncrypt;
 	int chunkCount = 0;
 	int writeFileSz = 0;
 
@@ -352,6 +353,8 @@ void* ServerWorker(void* arg)
 					stream >> info.encryptedFilename;
 					stream >> info.currentFileSz;
 
+					info.currentFileRealSzWithEncrypt = info.currentFileSz + (info.currentFileSz/CHUNK_SIZE + 1) * 28;
+
 					XMLElement* file;
 					bool found = false;
 
@@ -404,7 +407,6 @@ void* ServerWorker(void* arg)
 					if(info.auth == false)
 						break;
 
-					printf(WARN "Received file chunk %d with size %dB! (%dB/%dB)\n" CLEAR, info.chunkCount, packet.GetDataSize(), info.writeFileSz, info.currentFileSz);
 					int bytes = write(info.writeFd, packet.data, packet.size - 8);
 
 					info.chunkCount++;
@@ -412,6 +414,9 @@ void* ServerWorker(void* arg)
 
 					Packet response(Flags::SUCCESS, NULL, 0);
 					response.Send(clientSocket);
+
+					printf(WARN "Received file chunk %d with size %dB! (%dB/%dB)\n" CLEAR, info.chunkCount, packet.GetDataSize(), info.writeFileSz,
+							info.currentFileRealSzWithEncrypt);
 				}
 				break;
 
