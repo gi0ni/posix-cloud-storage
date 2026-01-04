@@ -531,18 +531,24 @@ void* ServerWorker(void* arg)
 						break;
 					}
 
-					XMLElement* dir = info.cwdXML->FirstChildElement("dir");
+					XMLElement* dir = info.cwdXML->FirstChildElement();
 					bool found = false;
 
 					while(dir)
 					{
-						if(dir->Attribute("name") == dirname)
+						if(dir->Name() == std::string("file") && dir->FirstChildElement("name")->GetText() == dirname)
 						{
 							found = true;
 							break;
 						}
 
-						dir = dir->NextSiblingElement("dir");
+						if(dir->Name() == std::string("dir") && dir->Attribute("name") == dirname)
+						{
+							found = true;
+							break;
+						}
+
+						dir = dir->NextSiblingElement();
 					}
 
 					if(found)
@@ -672,6 +678,7 @@ void* ServerWorker(void* arg)
 
 					Packet response(Flags::SUCCESS, NULL, 0);
 					response.Send(clientSocket);
+					info.userFilesXML->SaveFile( (info.userDir + "files.xml").c_str() );
 				}
 				break;
 
