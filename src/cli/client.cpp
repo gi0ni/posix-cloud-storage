@@ -13,6 +13,7 @@
 #include <imgui_impl_sdl2.h>
 #include <imgui_impl_sdlrenderer2.h>
 #include <SDL2/SDL.h>
+#include <nfd.h>
 
 void ParseArgs(int argc, char** argv);
 
@@ -24,6 +25,8 @@ int main(int argc, char** argv)
 	SDL_Window* window = SDL_CreateWindow("Client", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1152, 648, SDL_WINDOW_RESIZABLE);
 	SDL_Renderer* renderer = SDL_CreateRenderer(window, 0, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 	SDL_ShowWindow(window);
+
+	NFD_Init();
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -51,7 +54,7 @@ int main(int argc, char** argv)
 				break;
 
 				case SDL_DROPFILE:
-					HandleDropFile(event.drop.file);
+					HandleUploadFile(event.drop.file);
 				break;
 			}
 
@@ -120,6 +123,8 @@ int main(int argc, char** argv)
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
 	SDL_Quit();
+
+	NFD_Quit();
 	return 0;
 }
 

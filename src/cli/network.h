@@ -6,6 +6,6 @@
 void Connect();
 void SendAuthReq(Flags flag);
 void UpdateDirListContents();
-void HandleDropFile(const char* filepath);
+void HandleUploadFile(const char* filepath);
 
 #endif

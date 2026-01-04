@@ -4,15 +4,16 @@ file manip:
 [] rename
 [] move with drag and drop
 
-[] add Reed-Solomon for redundancy
-~~~> for this to work i need: to store each part of a file
+[] add Reed-Solomon for redundancy (error checking only) (no erasures)
 
 
 ===== GUI =====
 [DONE] update gui. make it look nice
 [DONE] add a button that closes the client on the connect screen
 [DONE] create directory opens a popup to ask for name
-[] upload file dialogue with sdl3
+[] upload file dialogue with sdl3/native-file-dialogue
++ allow multiple files being sent
++ don't allow dirs
 
 
 ===== FIXES =====

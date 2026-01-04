@@ -237,24 +237,24 @@ void UpdateDirListContents()
 	}
 }
 
-void HandleDropFile(const char* filepath)
+void HandleUploadFile(const char* filepath)
 {
-	std::cout << "Detected dropped file at path: " << filepath << '\n';
+	// std::cout << "Detected dropped file at path: " << filepath << '\n';
 
 	if(glb.auth == true)
 	{
 		try
 		{
-			SendFile(filepath, glb.serverSocket, glb.fileKey); // FIX: check if file exists?
+			SendFile(filepath, glb.serverSocket, glb.fileKey);
 			UpdateDirListContents();
 		}
 		catch(std::exception& e)
 		{
-			// FIX:
+			printf(ERR "%s\n" CLEAR, e.what());
 		}
 	}
 	else
 	{
-		// FIX:
+		printf(ERR "Cannot upload file to server. You are not logged in!\n" CLEAR);
 	}
 }

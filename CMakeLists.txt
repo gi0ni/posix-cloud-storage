@@ -7,13 +7,15 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "../bin")
 ### deps ###
 # SDL2
 # imgui
+# btzy/nativefiledialog-extended ~~~> libgtk-3-dev
 # tinyxml2
 # OpenSSL
 # libsodium
-# libcorrect
+# quiet/libcorrect
 
 find_package(SDL2 REQUIRED)
 # add_subdirectory("lib/libcorrect")
+add_subdirectory("lib/nativefiledialog-extended")
 
 include_directories("inc" "src/com")
 file(GLOB COMMON_SRCS "src/com/*.cpp")
@@ -27,4 +29,4 @@ set_target_properties("server" PROPERTIES COMPILE_OPTIONS "-std=c++11")
 target_link_libraries("server" -lsodium -lcrypto -lpthread)
 
 add_executable("client" ${CLIENT_SRCS} ${COMMON_SRCS} ${IMGUI})
-target_link_libraries("client" SDL2::SDL2 -lsodium -lcrypto)
+target_link_libraries("client" PRIVATE nfd SDL2::SDL2 -lsodium -lcrypto)

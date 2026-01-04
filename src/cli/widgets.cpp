@@ -4,7 +4,10 @@
 #include "network.h"
 #include "utils.h"
 
+#include <stdlib.h>
+
 #include <imgui.h>
+#include <nfd.h>
 
 
 // TODO: file preview?
@@ -279,6 +282,8 @@ void FileViewMenu()
 	ImGui::End();
 }
 
+void UploadFileDialogue();
+
 void ContextMenuCreateDir()
 {
 	if(ImGui::IsMouseClicked(ImGuiMouseButton_Right))
@@ -292,6 +297,9 @@ void ContextMenuCreateDir()
 	{
 		if(ImGui::MenuItem(" +   New directory"))
 			flag = true;
+
+		if(ImGui::MenuItem(" +   Upload file..."))
+			UploadFileDialogue();
 
 		ImGui::EndPopup();
 	}
@@ -343,5 +351,28 @@ void ContextMenuCreateDir()
 		}
 
 		ImGui::EndPopup();
+	}
+}
+
+void UploadFileDialogue()
+{
+	nfdu8char_t* selectedFilePath;
+	nfdopendialogu8args_t args = {0};
+	static char* home = strdup(getenv("HOME"));
+	args.defaultPath = home;
+
+	nfdresult_t result = NFD_OpenDialogU8_With(&selectedFilePath, &args);
+	if (result == NFD_OKAY)
+	{
+		HandleUploadFile(selectedFilePath);
+		NFD_FreePathU8(selectedFilePath);
+	}
+	else if (result == NFD_CANCEL)
+	{
+		// nothing
+	}
+	else 
+	{
+		printf(ERR "%s\n" CLEAR, NFD_GetError());
 	}
 }
