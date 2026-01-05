@@ -515,7 +515,15 @@ void* ServerWorker(void* arg)
 
 					std::string realFilename = file->Attribute("id");
 					std::string filepath = info.userDir + realFilename;
-					SendFile(filepath.c_str(), clientSocket, (unsigned char*)"", false);
+
+					try
+					{
+						SendFile(filepath.c_str(), clientSocket, (unsigned char*)"", false);
+					}
+					catch(std::exception& e)
+					{
+						printf(ERR "%s\n" CLEAR, e.what());
+					}
 				}
 				break;
 

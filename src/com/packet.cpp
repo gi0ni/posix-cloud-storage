@@ -2,12 +2,14 @@
 
 #include <unistd.h>
 #include <fcntl.h>
+#include <dirent.h>
 
 #include <cstdlib>
 #include <cstring>
 #include <cassert>
 #include <iostream>
 #include <stdexcept>
+#include <unordered_map>
 
 #include "utils.h"
 
@@ -343,11 +345,11 @@ void SendFile(const char* filepath, int socket, unsigned char key[32], bool encr
 	printf(OK "File '%s' (%dB) was sent succesfully.\n" CLEAR, filepath, size);
 }
 
-void RecvFile(const char* filepath, int socket, unsigned char key[32], bool decrypt)
-{
-	printf(WARN "\n=============== File '%s' recv started. ===============\n" CLEAR, filepath);
+std::string GetUniqueFilenameFS(const std::string& filename);
 
-	Packet packet(Flags::FILE_REQUEST, filepath, strlen(filepath));
+void RecvFile(const char* filename, int socket, unsigned char key[32], bool decrypt)
+{
+	Packet packet(Flags::FILE_REQUEST, filename, strlen(filename));
 	packet.Send(socket);
 	
 	packet.Recv(socket);
@@ -358,8 +360,14 @@ void RecvFile(const char* filepath, int socket, unsigned char key[32], bool decr
 
 	// FIX: check if filename is taken
 
-	std::string downloadPath = std::string(getenv("HOME")) + "/Downloads/";
-	int fd = open( (downloadPath + filepath).c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
+	static std::string home = std::string(getenv("HOME"));
+	std::string downloadPath = home + "/Downloads/" + filename;
+	downloadPath = GetUniqueFilenameFS(downloadPath);
+
+	printf(WARN "\n=============== File '%s' recv started. ===============\n" CLEAR, downloadPath.c_str());
+
+
+	int fd = open( downloadPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600 );
 	int size = 0;
 	int chunkCount = -1;
 
@@ -393,5 +401,40 @@ void RecvFile(const char* filepath, int socket, unsigned char key[32], bool decr
 	}
 
 	close(fd);
-	printf(OK "File '%s' (%dB) was downloaded succesfully.\n" CLEAR, filepath, size);
+	printf(OK "File '%s' (%dB) was downloaded succesfully.\n" CLEAR, downloadPath.c_str(), size);
+}
+
+std::string GetUniqueFilenameFS(const std::string& filename)
+{
+	std::unordered_map<std::string, bool> takenNames;
+
+	std::string dirpath = filename.substr(0, filename.find_last_of('/') + 1);
+	DIR* parent = opendir(dirpath.c_str());
+
+	struct dirent* entry;
+	while((entry = readdir(parent)) != NULL)
+		takenNames[dirpath + entry->d_name] = true;
+
+	closedir(parent);
+
+
+	if(takenNames.find(filename) == takenNames.end())
+		return filename;
+
+	int index = 1;
+	while(true)
+	{
+		std::string candidate = filename;
+		int pos = filename.find_last_of('.');
+		if(pos == -1)
+			pos = filename.size();
+
+		std::string suffix = " (" + std::to_string(index) + ")";
+		candidate.insert(pos, suffix);
+
+		if(takenNames.find(candidate) == takenNames.end())
+			return candidate;
+
+		index++;
+	}
 }
