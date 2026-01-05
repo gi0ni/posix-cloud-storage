@@ -76,6 +76,19 @@ int main(int argc, char** argv)
 			ConnectMenu();
 			AuthMenu();
 			FileViewMenu();
+
+			if(io.MouseReleased[0])
+			{
+				glb.dragFrame++;
+
+				if(glb.dragFrame == 2)
+				{
+					glb.fileDragged = false;
+					glb.dragFrame = 0;
+				}
+			}
+			else
+				glb.dragFrame = 0;
 		}
 		catch(std::exception& e)
 		{

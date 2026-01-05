@@ -48,6 +48,10 @@ class State
 	std::string displayCWD = "";
 	std::vector<FileEntry> dirContents;
 	char inputDirName[128];
+
+	bool fileDragged = false;
+	int dragFrame = 0;
+	std::string fileDragStart;
 };
 
 extern State& glb;

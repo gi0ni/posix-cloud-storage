@@ -25,9 +25,9 @@ file manip:
 [DONE] server uses ids for storing files
 [NOPE] send encrypted filenames to server
 
-[] client don't overwrite files in cwd --->
-[] don't overwrite files in downloads add (1) at end
-+++ add xml_utils getuniquefilename(cwd, filename)
+[DONE] client don't overwrite files in cwd --->
+[DONE] don't overwrite files in downloads add (1) at end
++++[DONE] add xml_utils getuniquefilename(cwd, filename)
 
 
 ===== UPDATE DOCS =====
@@ -35,4 +35,4 @@ file manip:
 
 
 ===== BONUS =====
-[] split worker.cpp into more files
+[NOPE] split worker.cpp into more files

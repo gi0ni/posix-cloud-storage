@@ -701,7 +701,56 @@ void* ServerWorker(void* arg)
 
 				case Flags::FILE_MOVE:
 				{
-					// TODO:
+					std::stringstream stream(packet.DataToStr());
+					std::string filename;
+					std::string destName;
+					std::getline(stream, filename, '\n');
+					std::getline(stream, destName, '\n');
+
+					if(filename == destName)
+					{
+						printf(ERR "Source and destination are the same!" CLEAR);
+						break;
+					}
+
+					XMLElement* file = FindXMLElementChild(info.cwdXML, filename);
+
+					if(file == NULL)
+					{
+						printf(ERR "Failed to find file!\n" CLEAR);
+						break;
+					}
+
+					if(destName == "../")
+					{
+						XMLNode* parent = file->Parent();
+						XMLNode* grandparent = parent->Parent();
+						if(parent == NULL || grandparent == NULL)
+						{
+							printf(ERR "Parent was NULL!\n" CLEAR);
+							break;
+						}
+
+						std::string unique = FilenameMakeUniqueXML(grandparent->ToElement(), filename);
+
+						if(file->Name() == std::string("file"))
+							file->FirstChildElement("name")->SetText(unique.c_str());
+						if(file->Name() == std::string("dir"))
+							file->SetAttribute("name", unique.c_str());
+
+						grandparent->InsertEndChild(file);
+						// parent->DeleteChild(file);
+						break;
+					}
+
+					XMLElement* dest = FindXMLElementChild(info.cwdXML, destName);
+					if(dest == NULL || dest->Name() == std::string("file"))
+					{
+						printf(ERR "Destination not found!\n" CLEAR);
+						break;
+					}
+
+					dest->InsertEndChild(file);
 				}
 				break;
 

@@ -135,6 +135,7 @@ void AuthMenu()
 
 void ContextMenuCreateDir();
 void ContextMenuRenameFile(int index, const std::string& filename);
+bool CheckMouseOverLastElement();
 
 void FileViewMenu()
 {
@@ -190,6 +191,13 @@ void FileViewMenu()
 
 		UpdateDirListContents();
 	}
+
+	if(CheckMouseOverLastElement() && ImGui::GetIO().MouseReleased[0] && glb.fileDragged == true)
+	{
+		HandleMoveFile(glb.fileDragStart, "../");
+		glb.fileDragged = false;
+	}
+
 	ImGui::PopStyleColor();
 
 	ImDrawList& render = *ImGui::GetWindowDrawList();
@@ -240,6 +248,22 @@ void FileViewMenu()
 		render.ChannelsSetCurrent(0);
 		if(rownum % 2 == 1) render.AddRectFilled(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), IM_COL32(26, 30, 60, 255));
 		render.ChannelsMerge();
+
+
+		// drag and drop
+		if(ImGui::IsItemHovered() && ImGui::GetIO().MouseDown[0])
+		{
+			glb.fileDragged = true;
+			glb.fileDragStart = entry.filename;
+		}
+
+		if(CheckMouseOverLastElement() && ImGui::GetIO().MouseReleased[0] && glb.fileDragged == true)
+		{
+			if(entry.isDir == true)
+				HandleMoveFile(glb.fileDragStart, entry.filename);
+			glb.fileDragged = false;
+		}
+
 
 		if(ImGui::IsItemHovered())
 		{
@@ -436,4 +460,20 @@ void ContextMenuRenameFile(int index, const std::string& filename)
 
 		ImGui::EndPopup();
 	}
+}
+
+bool CheckMouseOverLastElement()
+{
+	ImGuiIO& io = ImGui::GetIO();
+	ImVec2 mousePos = io.MousePos;
+
+	ImVec2 pos = ImGui::GetItemRectMin();
+	ImVec2 size = ImGui::GetItemRectSize();
+
+	ImVec2 mini = pos;
+	ImVec2 maxi = ImVec2(pos.x + size.x, pos.y + size.y);
+
+	if (mousePos.x >= mini.x && mousePos.x <= maxi.x && mousePos.y >= mini.y && mousePos.y <= maxi.y)
+		return true;
+	return false;
 }

@@ -258,3 +258,14 @@ void HandleUploadFile(const char* filepath)
 		printf(ERR "Cannot upload file to server. You are not logged in!\n" CLEAR);
 	}
 }
+
+void HandleMoveFile(const std::string& file, const std::string& where)
+{
+	if(file == where)
+		return;
+
+	std::string data = file + "\n" + where + "\n";
+	Packet packet(Flags::FILE_MOVE, data);
+	packet.Send(glb.serverSocket);
+	UpdateDirListContents();
+}
