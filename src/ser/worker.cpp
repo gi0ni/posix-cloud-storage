@@ -351,7 +351,7 @@ void* ServerWorker(void* arg)
 					std::stringstream stream;
 					stream << packet.DataToStr();
 
-					stream >> info.fileNameProperty;
+					std::getline(stream, info.fileNameProperty, '\n');
 					stream >> info.currentFileSz;
 
 					info.fileNameProperty = FilenameMakeUniqueXML(info.cwdXML, info.fileNameProperty);
@@ -656,8 +656,8 @@ void* ServerWorker(void* arg)
 					std::stringstream stream;
 					stream << packet.DataToStr();
 
-					std::string oldFilename; stream >> oldFilename;
-					std::string newFilename; stream >> newFilename;
+					std::string oldFilename; std::getline(stream, oldFilename, '\n');
+					std::string newFilename; std::getline(stream, newFilename, '\n');
 
 					XMLElement* file = FindXMLElementChild(info.cwdXML, oldFilename);
 					if(file == NULL)
