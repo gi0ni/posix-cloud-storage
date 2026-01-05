@@ -9,3 +9,5 @@ XMLElement* FindXMLElementChild(XMLElement* parent, const std::string& filename)
 void DeleteFileXML(const std::string& userdir, XMLElement* file);
 void DeleteDirXML(const std::string& userdir, XMLElement* dir);
 void DeleteInferTypeXML(const std::string& userdir, XMLElement* file);
+
+std::string FilenameMakeUniqueXML(XMLElement* parent, const std::string& filename);

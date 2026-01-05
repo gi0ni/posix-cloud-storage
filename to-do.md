@@ -27,6 +27,7 @@ file manip:
 
 [] client don't overwrite files in cwd --->
 [] don't overwrite files in downloads add (1) at end
++++ add xml_utils getuniquefilename(cwd, filename)
 
 
 ===== UPDATE DOCS =====

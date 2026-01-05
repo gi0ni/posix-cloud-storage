@@ -36,7 +36,7 @@ struct ClientInfo
 
 	std::string userDir;
 	std::string fileID;
-	std::string encryptedFilename;
+	std::string fileNameProperty;
 	std::string filenameEncrypted;
 	int writeFd;
 	int currentFileSz;
@@ -351,8 +351,10 @@ void* ServerWorker(void* arg)
 					std::stringstream stream;
 					stream << packet.DataToStr();
 
-					stream >> info.encryptedFilename;
+					stream >> info.fileNameProperty;
 					stream >> info.currentFileSz;
+
+					info.fileNameProperty = FilenameMakeUniqueXML(info.cwdXML, info.fileNameProperty);
 
 					info.currentFileRealSzWithEncrypt = info.currentFileSz + (info.currentFileSz/CHUNK_SIZE + 1) * 28;
 
@@ -364,7 +366,7 @@ void* ServerWorker(void* arg)
 
 					while(file)
 					{
-						if(info.encryptedFilename == file->FirstChildElement("name")->GetText())
+						if(info.fileNameProperty == file->FirstChildElement("name")->GetText())
 						{
 							found = true;
 							break;
@@ -381,7 +383,7 @@ void* ServerWorker(void* arg)
 						file = info.cwdXML->InsertNewChildElement("file");
 						file->SetAttribute("id", info.fileID.c_str());
 
-						file->InsertNewChildElement("name")->SetText(info.encryptedFilename.c_str());
+						file->InsertNewChildElement("name")->SetText(info.fileNameProperty.c_str());
 						file->InsertNewChildElement("size")->SetText(info.currentFileSz);
 						file->InsertNewChildElement("birth")->SetText(time(NULL));
 					}
@@ -389,7 +391,7 @@ void* ServerWorker(void* arg)
 					{
 						info.fileID = file->Attribute("id");
 
-						file->FirstChildElement("name")->SetText(info.encryptedFilename.c_str());
+						file->FirstChildElement("name")->SetText(info.fileNameProperty.c_str());
 						file->FirstChildElement("size")->SetText(info.currentFileSz);
 						file->FirstChildElement("birth")->SetText(time(NULL));
 					}
@@ -523,6 +525,7 @@ void* ServerWorker(void* arg)
 						break;
 
 					std::string dirname = packet.DataToStr();
+					// dirname = FilenameMakeUniqueXML(info.cwdXML, dirname);
 
 					if(dirname.size() == 0)
 					{
