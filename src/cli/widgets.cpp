@@ -284,18 +284,19 @@ void FileViewMenu()
 			ImGui::Text("%s", entry.filename.c_str());
 			ImGui::Text("―――――――――――――――");
 
-			if(ImGui::MenuItem("Delete"))
-			{
-				Packet packet(Flags::FILE_DELETE, entry.filename);
-				packet.Send(glb.serverSocket);
-				UpdateDirListContents();
-			}
 
 			bool renameContextFlag = false;
 
 			if(ImGui::MenuItem("Rename"))
 			{
 				renameContextFlag = true;
+			}
+
+			if(ImGui::MenuItem("Delete"))
+			{
+				Packet packet(Flags::FILE_DELETE, entry.filename);
+				packet.Send(glb.serverSocket);
+				UpdateDirListContents();
 			}
 
 			ImGui::EndPopup();

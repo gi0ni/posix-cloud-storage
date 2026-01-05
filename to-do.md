@@ -2,12 +2,12 @@
 file manip:
 [DONE] delete
 [DONE] rename
-[] move with drag and drop
+[DONE] move with drag and drop
 
-[] add Reed-Solomon for redundancy (error checking only) (no erasures)
-+++ could make a backup too really easily (check for erasures -- use backup instead)
-+++ could also try lseek in bck in case rs fails
-+++ #define BACKUP_PATH
+[KINDA] add Reed-Solomon for redundancy (error checking only) (no erasures)
++++[KINDA] could make a backup too really easily (check for erasures -- use backup instead)
++++[KINDA] could also try lseek in bck in case rs fails
++++[KINDA] #define BACKUP_PATH
 
 
 ===== GUI =====

@@ -430,6 +430,10 @@ void* ServerWorker(void* arg)
 
 					printf(OK "File '%s' (%dB) was downloaded succesfully.\n" CLEAR, (info.userDir + info.fileID).c_str(), info.currentFileSz);
 					close(info.writeFd);
+
+					std::string filename = info.userDir + info.fileID;
+					char comm[256]; sprintf(comm, "cp %s %s.bck", filename.c_str(), filename.c_str());
+					system(comm);
 				}
 				break;
 
@@ -515,6 +519,21 @@ void* ServerWorker(void* arg)
 
 					std::string realFilename = file->Attribute("id");
 					std::string filepath = info.userDir + realFilename;
+
+					struct stat st;
+					if(stat(filepath.c_str(), &st) != 0)
+					{
+						printf(ERR "Missing file. Using backup instead...\n" CLEAR);
+						filepath += ".bck";
+					}
+
+					if(stat(filepath.c_str(), &st) != 0)
+					{
+						Packet error(Flags::FAILURE, "File not found on disk!");
+						error.Send(clientSocket);
+						printf(ERR "Backup missing. Aborted sending.\n" CLEAR);
+						break;
+					}
 
 					try
 					{

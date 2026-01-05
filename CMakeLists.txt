@@ -11,7 +11,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "../bin")
 # tinyxml2
 # OpenSSL
 # libsodium
-# quiet/libcorrect
 
 find_package(SDL2 REQUIRED)
 # add_subdirectory("lib/libcorrect")
