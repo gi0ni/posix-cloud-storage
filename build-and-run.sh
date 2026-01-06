@@ -54,7 +54,7 @@ if [ $ret -eq 0 ]; then
 	# if [ $? -ne 0 ]; then
 	# 	launch "./bin/server $serverArgs" "0" "server"
 	# fi
-
+	#
 	# sleep 0.100
 	launch "./bin/client $clientArgs" "0" "client"
 fi

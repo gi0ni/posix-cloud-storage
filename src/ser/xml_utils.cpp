@@ -54,6 +54,11 @@ void DeleteFileXML(const std::string& userdir, XMLElement* file)
 		printf(ERR "%s\n" CLEAR, strerror(errno));
 	}
 
+	if(remove( (filepath + ".bck").c_str() ))
+	{
+		printf(ERR "%s\n" CLEAR, strerror(errno));
+	}
+
 	printf(OK "Delete file '%s' success.\n" CLEAR, filepath.c_str());
 	XMLNode* parent = file->Parent();
 	parent->DeleteChild(file);
