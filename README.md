@@ -8,7 +8,7 @@ Secure client–server file storage system made in C++ that allows users to acce
 
 - **Communication:** TCP/IP with a pre-threaded concurrent server model
 - **Key Exchange:** Elliptic-curve Diffie–Hellman (ECDH)
-- **File Encryption:** AES-256
+- **File Encryption:** AES-GCM-256
 - **Password Hashing:** scrypt with salt
 - **Storage:** XML-based metadata; encrypted files stored on disk with unique IDs and backup copies
 - **Security Model:** Encryption keys are derived from the user’s password — the server cannot access plaintext file contents.
