@@ -45,16 +45,16 @@ launch "ninja -C build" "1" "ninja"
 ret=$?
 
 serverArgs="--port 4023"
-# clientArgs="--ip 127.0.0.1 --port 4023 --username johnsmith --password 1234"
-clientArgs="--ip 10.100.0.30 --port 4023 --username johnsmith --password 1234"
+clientArgs="--ip 127.0.0.1 --port 4023 --username johnsmith --password 1234"
+# clientArgs="--ip 10.100.0.30 --port 4023 --username johnsmith --password 1234"
 
 if [ $ret -eq 0 ]; then
 
-	# ps aux | grep -P " ./bin/server " | grep -v "grep"
-	# if [ $? -ne 0 ]; then
-	# 	launch "./bin/server $serverArgs" "0" "server"
-	# fi
-	#
-	# sleep 0.100
+	ps aux | grep -P " ./bin/server " | grep -v "grep"
+	if [ $? -ne 0 ]; then
+		launch "./bin/server $serverArgs" "0" "server"
+	fi
+
+	sleep 0.100
 	launch "./bin/client $clientArgs" "0" "client"
 fi
